@@ -12,7 +12,7 @@
 
     <Grid>
         <!-- ================================================================= -->
-        <!-- VIEW 1: HOME DASHBOARD / LANDING SCREEN (3 ACTION TILES)          -->
+        <!-- VIEW 1: HOME DASHBOARD / LANDING SCREEN (TWO PRIMARY TILES)       -->
         <!-- ================================================================= -->
         <Grid x:Name="ViewDashboard" Visibility="Visible" Background="#F8FAFC">
             <Grid.RowDefinitions>
@@ -39,66 +39,46 @@
                 </Grid>
             </Border>
 
-            <!-- Three Action Tiles Grid -->
-            <Grid Grid.Row="1" Margin="30" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <!-- Two Action Tiles Centered on Dashboard -->
+            <Grid Grid.Row="1" Margin="40" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="360"/>
-                    <ColumnDefinition Width="24"/>
-                    <ColumnDefinition Width="360"/>
-                    <ColumnDefinition Width="24"/>
-                    <ColumnDefinition Width="360"/>
+                    <ColumnDefinition Width="420"/>
+                    <ColumnDefinition Width="40"/>
+                    <ColumnDefinition Width="420"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- TILE 1 (PRIMARY): REVIEW & RETRIEVE SUBMISSIONS -->
-                <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="12" Padding="24"
+                <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="12" Padding="28"
                         Cursor="Hand" MouseLeftButtonUp="TileRetrieveSubmissions_Click">
                     <Border.Effect>
                         <DropShadowEffect BlurRadius="20" ShadowDepth="4" Direction="270" Color="#94A3B8" Opacity="0.15"/>
                     </Border.Effect>
                     <StackPanel VerticalAlignment="Center">
-                        <Border Background="#EEF2FF" Width="56" Height="56" CornerRadius="28" HorizontalAlignment="Left" Margin="0,0,0,16">
-                            <TextBlock Text="📂" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border Background="#EEF2FF" Width="64" Height="64" CornerRadius="32" HorizontalAlignment="Left" Margin="0,0,0,20">
+                            <TextBlock Text="📂" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="Review &amp; Retrieve Submissions" FontSize="18" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
-                        <TextBlock Text="View tabular submissions sent from mobile. Inspect high-res documents, portrait photos, cycle through guests in that submission, and launch filing."
-                                   FontSize="12" Foreground="#64748B" TextWrapping="Wrap" LineHeight="18" Margin="0,0,0,20"/>
-                        <Button Content="Open Submissions Table →" Height="38" Background="#4F46E5" Foreground="#FFFFFF" FontWeight="Bold"
+                        <TextBlock Text="Review &amp; Retrieve Submissions" FontSize="20" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
+                        <TextBlock Text="Fetch guest batches submitted via the mobile app. Inspect high-res documents, verify extracted arrival details, and launch automated Form-C portal filing."
+                                   FontSize="13" Foreground="#64748B" TextWrapping="Wrap" LineHeight="20" Margin="0,0,0,24"/>
+                        <Button Content="Open Submissions Table →" Height="42" Background="#4F46E5" Foreground="#FFFFFF" FontWeight="Bold"
                                 BorderThickness="0" Click="TileRetrieveSubmissions_Click"/>
                     </StackPanel>
                 </Border>
 
-                <!-- TILE 2: NEW DESKTOP CAPTURE & EXTRACTION -->
-                <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="12" Padding="24"
-                        Cursor="Hand" MouseLeftButtonUp="TileNewCapture_Click">
-                    <Border.Effect>
-                        <DropShadowEffect BlurRadius="20" ShadowDepth="4" Direction="270" Color="#94A3B8" Opacity="0.15"/>
-                    </Border.Effect>
-                    <StackPanel VerticalAlignment="Center">
-                        <Border Background="#F0FDF4" Width="56" Height="56" CornerRadius="28" HorizontalAlignment="Left" Margin="0,0,0,16">
-                            <TextBlock Text="🚀" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <TextBlock Text="New Desktop Ingestion" FontSize="18" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
-                        <TextBlock Text="Select passport, visa, stamp, or arrival slips stored directly on this PC. Dispatch to Dell server for OCR and visual token extraction."
-                                   FontSize="12" Foreground="#64748B" TextWrapping="Wrap" LineHeight="18" Margin="0,0,0,20"/>
-                        <Button Content="Select Files &amp; Ingest →" Height="38" Background="#059669" Foreground="#FFFFFF" FontWeight="Bold"
-                                BorderThickness="0" Click="TileNewCapture_Click"/>
-                    </StackPanel>
-                </Border>
-
-                <!-- TILE 3: ENCRYPTED FORM-C PORTAL CREDENTIALS -->
-                <Border Grid.Column="4" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="12" Padding="24"
+                <!-- TILE 2: ENCRYPTED FORM-C PORTAL CREDENTIALS -->
+                <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="12" Padding="28"
                         Cursor="Hand" MouseLeftButtonUp="TileCredentials_Click">
                     <Border.Effect>
                         <DropShadowEffect BlurRadius="20" ShadowDepth="4" Direction="270" Color="#94A3B8" Opacity="0.15"/>
                     </Border.Effect>
                     <StackPanel VerticalAlignment="Center">
-                        <Border Background="#FEF3C7" Width="56" Height="56" CornerRadius="28" HorizontalAlignment="Left" Margin="0,0,0,16">
-                            <TextBlock Text="🔐" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border Background="#FEF3C7" Width="64" Height="64" CornerRadius="32" HorizontalAlignment="Left" Margin="0,0,0,20">
+                            <TextBlock Text="🔐" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="Portal Credentials" FontSize="18" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
-                        <TextBlock Text="Store your Form-C user ID and password encrypted via Windows DPAPI. Enter once and forget; autofill uses them seamlessly without prompting."
-                                   FontSize="12" Foreground="#64748B" TextWrapping="Wrap" LineHeight="18" Margin="0,0,0,20"/>
-                        <Button Content="Manage Saved Credentials ⚙" Height="38" Background="#D97706" Foreground="#FFFFFF" FontWeight="Bold"
+                        <TextBlock Text="Portal Credentials" FontSize="20" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
+                        <TextBlock Text="Store your Form-C user ID and password encrypted via Windows DPAPI. Enter once and forget; the portal runner uses them seamlessly without prompting."
+                                   FontSize="13" Foreground="#64748B" TextWrapping="Wrap" LineHeight="20" Margin="0,0,0,24"/>
+                        <Button Content="Manage Saved Credentials ⚙" Height="42" Background="#D97706" Foreground="#FFFFFF" FontWeight="Bold"
                                 BorderThickness="0" Click="TileCredentials_Click"/>
                     </StackPanel>
                 </Border>
