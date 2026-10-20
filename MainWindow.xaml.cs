@@ -3,7 +3,7 @@
 // ==============================================================================
 // Strictly operates against real live submissions from the Dell Edge Server
 // Features: Default whole-image fitting, interactive zoom/pan controls,
-// and guest portrait photo streaming.
+// and guest portrait photo streaming with passport bio fallback.
 // Domain: https://api.theasymptotebrief.com via Cloudflare Tunnel
 // ==============================================================================
 
@@ -34,7 +34,7 @@ namespace HomestayDesktopApp
         private SubmissionSummary? _selectedSubmission;
         private int _currentGuestIndex = 0;
 
-        // Zoom state tracking
+        // Zoom scale tracking (1.0 = fit to container frame)
         private double _currentZoomScale = 1.0;
 
         /// <summary>
@@ -290,38 +290,72 @@ namespace HomestayDesktopApp
             UpdateDocumentImagePreview();
         }
 
+        /// <summary>
+        /// Updates the preview image in the left inspection pane according to the selected tab.
+        /// Constrains the image to the visible viewport by default (100% fit).
+        /// Falls back to passport_bio if a standalone guest_photo was not uploaded.
+        /// </summary>
         private void UpdateDocumentImagePreview()
         {
             if (_selectedSubmission == null || _selectedSubmission.Guests.Count == 0) return;
             var guest = _selectedSubmission.Guests[_currentGuestIndex];
 
-            // Build image endpoint matching active tab
+            // Base URL on the Dell Micro edge server
             string serverBase = "https://api.theasymptotebrief.com/api/v1/jobs/" + _selectedSubmission.Id + "/image/";
-            string? imageUrl = null;
+            string targetUrl = serverBase + "passport_bio";
 
-            if (TabPassport.IsChecked == true) imageUrl = serverBase + "passport_bio";
-            else if (TabVisa.IsChecked == true) imageUrl = serverBase + "visa_page";
-            else if (TabStamp.IsChecked == true) imageUrl = serverBase + "entry_stamp";
-            else if (TabWelcome.IsChecked == true) imageUrl = serverBase + "welcome_form";
-            else if (TabPhoto.IsChecked == true) imageUrl = serverBase + "guest_photo";
+            if (TabPassport.IsChecked == true)
+            {
+                targetUrl = serverBase + "passport_bio";
+            }
+            else if (TabVisa.IsChecked == true)
+            {
+                targetUrl = serverBase + "visa_page";
+            }
+            else if (TabStamp.IsChecked == true)
+            {
+                targetUrl = serverBase + "entry_stamp";
+            }
+            else if (TabWelcome.IsChecked == true)
+            {
+                targetUrl = serverBase + "welcome_form";
+            }
+            else if (TabPhoto.IsChecked == true)
+            {
+                // Attempt to load standalone portrait photo; falls back to passport_bio if absent on server
+                targetUrl = serverBase + "guest_photo";
+            }
 
+            // Reset zoom scale so the whole image fits entirely inside the frame
             ResetImageZoom();
 
             try
             {
-                if (!string.IsNullOrWhiteSpace(imageUrl))
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = new Uri(targetUrl, UriKind.Absolute);
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+
+                // If loading guest_photo fails (404), fall back to passport_bio
+                bitmap.DownloadFailed += (s, e) =>
                 {
-                    var bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.UriSource = new Uri(imageUrl, UriKind.RelativeOrAbsolute);
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmap.EndInit();
-                    ImgDocumentPreview.Source = bitmap;
-                }
-                else
-                {
-                    ImgDocumentPreview.Source = null;
-                }
+                    if (TabPhoto.IsChecked == true)
+                    {
+                        var fallbackBitmap = new BitmapImage();
+                        fallbackBitmap.BeginInit();
+                        fallbackBitmap.UriSource = new Uri(serverBase + "passport_bio", UriKind.Absolute);
+                        fallbackBitmap.CacheOption = BitmapCacheOption.OnLoad;
+                        fallbackBitmap.EndInit();
+                        ImgDocumentPreview.Source = fallbackBitmap;
+                    }
+                    else
+                    {
+                        ImgDocumentPreview.Source = null;
+                    }
+                };
+
+                bitmap.EndInit();
+                ImgDocumentPreview.Source = bitmap;
             }
             catch
             {
@@ -333,12 +367,18 @@ namespace HomestayDesktopApp
         // Zoom and Image Pan Controls
         // --------------------------------------------------------------------------
 
+        /// <summary>
+        /// Resets the scale transform to 1.0 (fitting the entire document inside the visible viewport).
+        /// </summary>
         private void ResetImageZoom()
         {
             _currentZoomScale = 1.0;
             ApplyZoom();
         }
 
+        /// <summary>
+        /// Applies the current zoom scale transform and updates the status indicator.
+        /// </summary>
         private void ApplyZoom()
         {
             if (ImageScaleTransform != null)
@@ -349,7 +389,7 @@ namespace HomestayDesktopApp
             if (TxtZoomLevel != null)
             {
                 int pct = (int)Math.Round(_currentZoomScale * 100);
-                TxtZoomLevel.Text = _currentZoomScale == 1.0 ? "Zoom: Fit to Window (100%)" : $"Zoom: {pct}%";
+                TxtZoomLevel.Text = _currentZoomScale == 1.0 ? "Zoom: Fit to Frame (100%)" : $"Zoom: {pct}%";
             }
         }
 

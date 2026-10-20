@@ -16,7 +16,9 @@
         <!-- ================================================================= -->
         <Grid x:Name="ViewDashboard" Visibility="Visible" Background="#F8FAFC">
             <Grid.RowDefinitions>
+                <!-- Header Bar -->
                 <RowDefinition Height="Auto"/>
+                <!-- Central Action Tiles -->
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
@@ -247,7 +249,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock x:Name="TxtZoomLevel" Grid.Column="0" Text="Zoom: Fit to Window (100%)" FontSize="11" Foreground="#64748B" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="TxtZoomLevel" Grid.Column="0" Text="Zoom: Fit to Frame (100%)" FontSize="11" Foreground="#64748B" VerticalAlignment="Center"/>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                                     <Button Content="− Zoom Out" Height="24" Padding="8,0" Margin="0,0,4,0" FontSize="11"
                                             Background="#F1F5F9" Foreground="#334155" BorderThickness="0" Click="BtnZoomOut_Click"/>
@@ -259,12 +261,21 @@
                             </Grid>
                         </Border>
 
-                        <!-- Scrollable / Zoomable Document Viewer -->
+                        <!-- Scrollable / Zoomable Document Viewer Bound to Visible Container Dimensions -->
                         <Border x:Name="ViewerContainer" Grid.Row="2" Background="#0F172A" CornerRadius="6" ClipToBounds="True">
-                            <ScrollViewer x:Name="ImgScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                            <ScrollViewer x:Name="ImgScrollViewer" 
+                                          HorizontalScrollBarVisibility="Auto" 
+                                          VerticalScrollBarVisibility="Auto"
+                                          Focusable="False"
                                           PreviewMouseWheel="ImgScrollViewer_PreviewMouseWheel">
-                                <Grid x:Name="ImageGrid" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <Image x:Name="ImgDocumentPreview" Stretch="Uniform">
+                                <!-- Grid centered within the viewport -->
+                                <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <!-- Image constrained strictly to parent container dimensions at 1.0x scale -->
+                                    <Image x:Name="ImgDocumentPreview" 
+                                           Stretch="Uniform"
+                                           MaxWidth="{Binding ActualWidth, ElementName=ViewerContainer}"
+                                           MaxHeight="{Binding ActualHeight, ElementName=ViewerContainer}"
+                                           RenderOptions.BitmapScalingMode="HighQuality">
                                         <Image.LayoutTransform>
                                             <ScaleTransform x:Name="ImageScaleTransform" ScaleX="1.0" ScaleY="1.0"/>
                                         </Image.LayoutTransform>
