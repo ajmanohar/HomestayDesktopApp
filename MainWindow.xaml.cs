@@ -1,12 +1,9 @@
 ﻿// ==============================================================================
 // MainWindow.xaml.cs - HomestayDesktopApp (.NET 8 WPF)
 // ==============================================================================
-// Orchestrates multi-screen navigation:
-// 1. Dashboard Landing (Review & Retrieve Submissions vs Ingest New)
-// 2. Submissions List & Batch Ingestion
-// 3. Multi-Guest Split-Screen Review (Document Preview + Form-C Fields)
-// 4. Form-C Portal Runner with Microsoft WebView2 Chromium Automation
-// Base Server: https://api.theasymptotebrief.com via Cloudflare Tunnel
+// Strictly operates against real live submissions from the Dell Edge Server
+// Domain: https://api.theasymptotebrief.com via Cloudflare Tunnel
+// Zero mock/demo fallbacks.
 // ==============================================================================
 
 using System;
@@ -30,7 +27,7 @@ namespace HomestayDesktopApp
         private readonly PassportApiClient _apiClient;
         private FormCDomInjector? _domInjector;
 
-        // Current Active Submission & Guest Navigation
+        // Current Active Submissions & Selected Guest Navigation
         private List<SubmissionSummary> _submissionsList = new List<SubmissionSummary>();
         private SubmissionSummary? _selectedSubmission;
         private int _currentGuestIndex = 0;
@@ -42,7 +39,7 @@ namespace HomestayDesktopApp
         {
             InitializeComponent();
 
-            // Initialize API Client communicating with Dell Edge Server
+            // Initialize API Client communicating with live Dell Edge Server
             _apiClient = new PassportApiClient();
 
             // Ensure WebView2 is initialized
@@ -118,7 +115,6 @@ namespace HomestayDesktopApp
 
         private async void TileNewCapture_Click(object sender, RoutedEventArgs e)
         {
-            // Prompt user to select local document images for extraction
             var openFileDialog = new OpenFileDialog
             {
                 Filter = "Image Files (*.jpg;*.jpeg;*.png)|*.jpg;*.jpeg;*.png",
@@ -131,11 +127,9 @@ namespace HomestayDesktopApp
 
                 try
                 {
-                    // Submit to Dell edge server
                     var jobResp = await _apiClient.SubmitDocumentsAsync(passportFile);
                     MessageBox.Show($"Documents dispatched to Dell server! Assigned Job ID: {jobResp.JobId}", "Extraction Dispatched", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                    // Switch to submissions list and reload
                     ShowSubmissionsList();
                     await LoadSubmissionsAsync();
                 }
@@ -146,23 +140,60 @@ namespace HomestayDesktopApp
             }
         }
 
+        private void TileCredentials_Click(object sender, RoutedEventArgs e)
+        {
+            var creds = CredentialStorageService.LoadCredentials();
+            TxtModalUserId.Text = creds?.UserId ?? string.Empty;
+            TxtModalPassword.Password = creds?.Password ?? string.Empty;
+            ModalCredentials.Visibility = Visibility.Visible;
+        }
+
+        private void BtnCloseCredsModal_Click(object sender, RoutedEventArgs e)
+        {
+            ModalCredentials.Visibility = Visibility.Collapsed;
+        }
+
+        private void BtnSaveCredsModal_Click(object sender, RoutedEventArgs e)
+        {
+            string user = TxtModalUserId.Text.Trim();
+            string pass = TxtModalPassword.Password.Trim();
+
+            if (string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(pass))
+            {
+                MessageBox.Show("Please enter both User ID and Password.", "Validation Notice", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            CredentialStorageService.SaveCredentials(user, pass);
+            ModalCredentials.Visibility = Visibility.Collapsed;
+            MessageBox.Show("Form-C portal credentials securely encrypted and saved via Windows DPAPI.", "Credentials Saved", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
         // --------------------------------------------------------------------------
-        // Screen 2: Submissions Retrieval & Selection
+        // Screen 2: Submissions Retrieval & Tabular DataGrid (Live Server Only)
         // --------------------------------------------------------------------------
 
         private async Task LoadSubmissionsAsync()
         {
             try
             {
+                // Query live Dell Edge Server for processed submissions
                 var jobs = await _apiClient.GetRecentJobsAsync();
                 _submissionsList = new List<SubmissionSummary>();
 
                 foreach (var job in jobs)
                 {
+                    string leadGuestName = job.Result != null && !string.IsNullOrWhiteSpace(job.Result.GivenNames?.Value)
+                        ? $"{job.Result.GivenNames.Value} {job.Result.Surname?.Value}".Trim()
+                        : "Lead Guest";
+
+                    // Base URL for document artifacts served by the Dell backend
+                    string serverBase = "https://api.theasymptotebrief.com/api/v1/jobs/" + job.JobId + "/image/";
+
                     var summary = new SubmissionSummary
                     {
                         Id = job.JobId,
-                        Reference = $"Submission #{job.JobId[..Math.Min(8, job.JobId.Length)]}",
+                        Reference = leadGuestName + " (Job #" + job.JobId[..Math.Min(6, job.JobId.Length)] + ")",
                         Status = job.Status,
                         CreatedAt = job.CreatedAt,
                         GuestCount = 1,
@@ -171,9 +202,11 @@ namespace HomestayDesktopApp
                             new GuestItem
                             {
                                 GuestIndex = 0,
-                                GuestName = job.Result != null && !string.IsNullOrWhiteSpace(job.Result.GivenNames?.Value)
-                                    ? $"{job.Result.GivenNames.Value} {job.Result.Surname?.Value}".Trim()
-                                    : "Guest 1",
+                                GuestName = leadGuestName,
+                                PassportImageUrl = serverBase + "passport_bio",
+                                VisaImageUrl = serverBase + "visa_page",
+                                StampImageUrl = serverBase + "entry_stamp",
+                                WelcomeFormImageUrl = serverBase + "welcome_form",
                                 ExtractedRecord = job.Result ?? new GuestFormCRecord()
                             }
                         }
@@ -181,65 +214,12 @@ namespace HomestayDesktopApp
                     _submissionsList.Add(summary);
                 }
 
-                // If no jobs returned from server yet, create placeholder entry for testing
-                if (_submissionsList.Count == 0)
-                {
-                    _submissionsList.Add(new SubmissionSummary
-                    {
-                        Id = "local_demo_1",
-                        Reference = "Demo Homestay Check-In (2 Guests)",
-                        Status = "COMPLETED",
-                        CreatedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
-                        GuestCount = 2,
-                        Guests = new List<GuestItem>
-                        {
-                            new GuestItem
-                            {
-                                GuestIndex = 0,
-                                GuestName = "BAUER DOE",
-                                ExtractedRecord = new GuestFormCRecord
-                                {
-                                    Surname = new FieldResult("DOE"),
-                                    GivenNames = new FieldResult("BAUER"),
-                                    Sex = new FieldResult("M"),
-                                    DateOfBirth = new FieldResult("1990-10-20"),
-                                    PassportNumber = new FieldResult("PAD640874"),
-                                    Nationality = new FieldResult("Panamanian"),
-                                    VisaNumber = new FieldResult("1041548"),
-                                    VisaType = new FieldResult("TOURIST VISA"),
-                                    ArrivalDateIndia = new FieldResult("15/08/2026"),
-                                    ArrivalPortIndia = new FieldResult("COCHIN INSEAPORT"),
-                                    PurposeOfVisit = new FieldResult("Tourism")
-                                }
-                            },
-                            new GuestItem
-                            {
-                                GuestIndex = 1,
-                                GuestName = "JANE DOE",
-                                ExtractedRecord = new GuestFormCRecord
-                                {
-                                    Surname = new FieldResult("DOE"),
-                                    GivenNames = new FieldResult("JANE"),
-                                    Sex = new FieldResult("F"),
-                                    DateOfBirth = new FieldResult("1992-04-15"),
-                                    PassportNumber = new FieldResult("PAD991823"),
-                                    Nationality = new FieldResult("Panamanian"),
-                                    VisaNumber = new FieldResult("1041549"),
-                                    VisaType = new FieldResult("TOURIST VISA"),
-                                    ArrivalDateIndia = new FieldResult("15/08/2026"),
-                                    ArrivalPortIndia = new FieldResult("COCHIN INSEAPORT"),
-                                    PurposeOfVisit = new FieldResult("Tourism")
-                                }
-                            }
-                        }
-                    });
-                }
-
-                LstSubmissions.ItemsSource = _submissionsList;
+                // Strictly bind live server submissions without any synthetic/mock fallback
+                DgSubmissions.ItemsSource = _submissionsList;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to fetch submissions:\n{ex.Message}", "Connection Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"Failed to fetch submissions from Dell server:\n{ex.Message}", "Connection Error", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
@@ -255,9 +235,9 @@ namespace HomestayDesktopApp
             }
         }
 
-        private void LstSubmissions_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void DgSubmissions_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            if (LstSubmissions.SelectedItem is SubmissionSummary submission)
+            if (DgSubmissions.SelectedItem is SubmissionSummary submission)
             {
                 OpenSubmissionReview(submission);
             }
@@ -265,6 +245,7 @@ namespace HomestayDesktopApp
 
         private void OpenSubmissionReview(SubmissionSummary submission)
         {
+            // Strict isolation: Review is confined solely to this selected submission
             _selectedSubmission = submission;
             _currentGuestIndex = 0;
             ShowGuestReview();
@@ -272,7 +253,7 @@ namespace HomestayDesktopApp
         }
 
         // --------------------------------------------------------------------------
-        // Screen 3: Multi-Guest Carousel & Review
+        // Screen 3: Multi-Guest Carousel & Review (Strictly Scoped to Submission)
         // --------------------------------------------------------------------------
 
         private void LoadCurrentGuestDetails()
@@ -282,7 +263,10 @@ namespace HomestayDesktopApp
             int totalGuests = _selectedSubmission.Guests.Count;
             var guest = _selectedSubmission.Guests[_currentGuestIndex];
 
+            // Update counter and navigation boundary controls
             TxtGuestCounter.Text = $"Guest {_currentGuestIndex + 1} of {totalGuests}: {guest.GuestName}";
+            BtnPrevGuest.IsEnabled = _currentGuestIndex > 0;
+            BtnNextGuest.IsEnabled = _currentGuestIndex < totalGuests - 1;
 
             var rec = guest.ExtractedRecord;
             TxtReviewSurname.Text = rec.Surname?.Value ?? "";
@@ -301,6 +285,43 @@ namespace HomestayDesktopApp
             TxtReviewAddress.Text = rec.PermanentAddress?.Value ?? "";
             TxtReviewEmail.Text = rec.ContactEmail?.Value ?? "";
             TxtReviewPhone.Text = rec.ContactPhone?.Value ?? "";
+
+            // Refresh document preview image based on active tab
+            UpdateDocumentImagePreview();
+        }
+
+        private void UpdateDocumentImagePreview()
+        {
+            if (_selectedSubmission == null || _selectedSubmission.Guests.Count == 0) return;
+            var guest = _selectedSubmission.Guests[_currentGuestIndex];
+
+            string? imageUrl = null;
+            if (TabPassport.IsChecked == true) imageUrl = guest.PassportImageUrl;
+            else if (TabVisa.IsChecked == true) imageUrl = guest.VisaImageUrl;
+            else if (TabStamp.IsChecked == true) imageUrl = guest.StampImageUrl;
+            else if (TabWelcome.IsChecked == true) imageUrl = guest.WelcomeFormImageUrl;
+            else if (TabPhoto != null && TabPhoto.IsChecked == true) imageUrl = guest.PassportImageUrl;
+
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(imageUrl))
+                {
+                    var bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.UriSource = new Uri(imageUrl, UriKind.RelativeOrAbsolute);
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.EndInit();
+                    ImgDocumentPreview.Source = bitmap;
+                }
+                else
+                {
+                    ImgDocumentPreview.Source = null;
+                }
+            }
+            catch
+            {
+                ImgDocumentPreview.Source = null;
+            }
         }
 
         private void SaveCurrentGuestEdits()
@@ -356,7 +377,7 @@ namespace HomestayDesktopApp
 
         private void DocTab_Checked(object sender, RoutedEventArgs e)
         {
-            // Switch document preview placeholder or image if available
+            UpdateDocumentImagePreview();
         }
 
         private void BtnLaunchPortal_Click(object sender, RoutedEventArgs e)
@@ -388,7 +409,7 @@ namespace HomestayDesktopApp
             }
             else
             {
-                _currentGuestIndex = 0; // Wrap around to first guest
+                _currentGuestIndex = 0;
             }
             UpdatePortalHeader();
             LoadCurrentGuestDetails();
@@ -402,19 +423,19 @@ namespace HomestayDesktopApp
                 return;
             }
 
-            string portalUser = Environment.GetEnvironmentVariable("FORMC_PORTAL_USER") ?? "";
-            string portalPass = Environment.GetEnvironmentVariable("FORMC_PORTAL_PASS") ?? "";
+            var stored = CredentialStorageService.LoadCredentials();
+            string portalUser = stored?.UserId ?? "";
+            string portalPass = stored?.Password ?? "";
 
             if (string.IsNullOrWhiteSpace(portalUser) || string.IsNullOrWhiteSpace(portalPass))
             {
-                portalUser = Microsoft.VisualBasic.Interaction.InputBox("Enter Form-C Portal User ID:", "Portal Login", portalUser);
-                if (string.IsNullOrWhiteSpace(portalUser)) return;
-
-                portalPass = Microsoft.VisualBasic.Interaction.InputBox("Enter Form-C Portal Password:", "Portal Login", portalPass);
-                if (string.IsNullOrWhiteSpace(portalPass)) return;
+                MessageBox.Show("No saved Form-C credentials found. Please configure them once via Tile 3 (Portal Credentials).", "Credentials Needed", MessageBoxButton.OK, MessageBoxImage.Information);
+                TxtModalUserId.Text = "";
+                TxtModalPassword.Password = "";
+                ModalCredentials.Visibility = Visibility.Visible;
+                return;
             }
 
-            // Fixed tuple deconstruction resolving error CS0029
             (bool success, string message) = await _domInjector.InjectLoginCredentialsAsync(portalUser, portalPass);
 
             if (success)
@@ -442,8 +463,6 @@ namespace HomestayDesktopApp
             }
 
             var guest = _selectedSubmission.Guests[_currentGuestIndex];
-
-            // Fixed tuple deconstruction resolving error CS0029
             (bool success, string message) = await _domInjector.InjectGuestDetailsAsync(guest.ExtractedRecord);
 
             MessageBox.Show(message, success ? "Autofill Complete" : "Autofill Status", MessageBoxButton.OK, success ? MessageBoxImage.Information : MessageBoxImage.Warning);

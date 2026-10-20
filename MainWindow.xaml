@@ -5,14 +5,14 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         mc:Ignorable="d"
-        Title="Homestay Form-C Assistant (Kochi)" Height="920" Width="1440"
+        Title="Homestay Form-C Desktop Assistant (Kochi)" Height="920" Width="1440"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
         Background="#0F172A">
 
     <Grid>
         <!-- ================================================================= -->
-        <!-- VIEW 1: HOME DASHBOARD / LANDING SCREEN                           -->
+        <!-- VIEW 1: HOME DASHBOARD / LANDING SCREEN (3 ACTION TILES)          -->
         <!-- ================================================================= -->
         <Grid x:Name="ViewDashboard" Visibility="Visible" Background="#F8FAFC">
             <Grid.RowDefinitions>
@@ -20,7 +20,7 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- Dashboard Top Navigation Bar -->
+            <!-- Dashboard Top Header Bar -->
             <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="32,20">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -37,54 +37,74 @@
                 </Grid>
             </Border>
 
-            <!-- Action Tiles Grid -->
-            <Grid Grid.Row="1" Margin="40" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <!-- Three Action Tiles Grid -->
+            <Grid Grid.Row="1" Margin="30" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="420"/>
-                    <ColumnDefinition Width="40"/>
-                    <ColumnDefinition Width="420"/>
+                    <ColumnDefinition Width="360"/>
+                    <ColumnDefinition Width="24"/>
+                    <ColumnDefinition Width="360"/>
+                    <ColumnDefinition Width="24"/>
+                    <ColumnDefinition Width="360"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- TILE 1 (PRIMARY): REVIEW & RETRIEVE SUBMISSIONS -->
-                <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="12" Padding="28"
+                <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="12" Padding="24"
                         Cursor="Hand" MouseLeftButtonUp="TileRetrieveSubmissions_Click">
                     <Border.Effect>
                         <DropShadowEffect BlurRadius="20" ShadowDepth="4" Direction="270" Color="#94A3B8" Opacity="0.15"/>
                     </Border.Effect>
                     <StackPanel VerticalAlignment="Center">
-                        <Border Background="#EEF2FF" Width="64" Height="64" CornerRadius="32" HorizontalAlignment="Left" Margin="0,0,0,20">
-                            <TextBlock Text="📂" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border Background="#EEF2FF" Width="56" Height="56" CornerRadius="28" HorizontalAlignment="Left" Margin="0,0,0,16">
+                            <TextBlock Text="📂" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="Review &amp; Retrieve Submissions" FontSize="20" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
-                        <TextBlock Text="Fetch guest batches submitted via mobile or desktop. Inspect extracted documents, cycle through all guests, and launch automated Form-C filing."
-                                   FontSize="13" Foreground="#64748B" TextWrapping="Wrap" LineHeight="20" Margin="0,0,0,24"/>
-                        <Button Content="Open Submissions List →" Height="40" Background="#4F46E5" Foreground="#FFFFFF" FontWeight="Bold"
+                        <TextBlock Text="Review &amp; Retrieve Submissions" FontSize="18" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
+                        <TextBlock Text="View tabular submissions sent from mobile. Inspect high-res documents, portrait photos, cycle through guests in that submission, and launch filing."
+                                   FontSize="12" Foreground="#64748B" TextWrapping="Wrap" LineHeight="18" Margin="0,0,0,20"/>
+                        <Button Content="Open Submissions Table →" Height="38" Background="#4F46E5" Foreground="#FFFFFF" FontWeight="Bold"
                                 BorderThickness="0" Click="TileRetrieveSubmissions_Click"/>
                     </StackPanel>
                 </Border>
 
                 <!-- TILE 2: NEW DESKTOP CAPTURE & EXTRACTION -->
-                <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="12" Padding="28"
+                <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="12" Padding="24"
                         Cursor="Hand" MouseLeftButtonUp="TileNewCapture_Click">
                     <Border.Effect>
                         <DropShadowEffect BlurRadius="20" ShadowDepth="4" Direction="270" Color="#94A3B8" Opacity="0.15"/>
                     </Border.Effect>
                     <StackPanel VerticalAlignment="Center">
-                        <Border Background="#F0FDF4" Width="64" Height="64" CornerRadius="32" HorizontalAlignment="Left" Margin="0,0,0,20">
-                            <TextBlock Text="🚀" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border Background="#F0FDF4" Width="56" Height="56" CornerRadius="28" HorizontalAlignment="Left" Margin="0,0,0,16">
+                            <TextBlock Text="🚀" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="New Desktop Ingestion" FontSize="20" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
-                        <TextBlock Text="Select passport, visa, stamp, and physical welcome slip images stored on this desktop. Dispatch to Dell server for OCR and visual extraction."
-                                   FontSize="13" Foreground="#64748B" TextWrapping="Wrap" LineHeight="20" Margin="0,0,0,24"/>
-                        <Button Content="Select Local Files &amp; Ingest →" Height="40" Background="#059669" Foreground="#FFFFFF" FontWeight="Bold"
+                        <TextBlock Text="New Desktop Ingestion" FontSize="18" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
+                        <TextBlock Text="Select passport, visa, stamp, or arrival slips stored directly on this PC. Dispatch to Dell server for OCR and visual token extraction."
+                                   FontSize="12" Foreground="#64748B" TextWrapping="Wrap" LineHeight="18" Margin="0,0,0,20"/>
+                        <Button Content="Select Files &amp; Ingest →" Height="38" Background="#059669" Foreground="#FFFFFF" FontWeight="Bold"
                                 BorderThickness="0" Click="TileNewCapture_Click"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- TILE 3: ENCRYPTED FORM-C PORTAL CREDENTIALS -->
+                <Border Grid.Column="4" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="12" Padding="24"
+                        Cursor="Hand" MouseLeftButtonUp="TileCredentials_Click">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="20" ShadowDepth="4" Direction="270" Color="#94A3B8" Opacity="0.15"/>
+                    </Border.Effect>
+                    <StackPanel VerticalAlignment="Center">
+                        <Border Background="#FEF3C7" Width="56" Height="56" CornerRadius="28" HorizontalAlignment="Left" Margin="0,0,0,16">
+                            <TextBlock Text="🔐" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Portal Credentials" FontSize="18" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
+                        <TextBlock Text="Store your Form-C user ID and password encrypted via Windows DPAPI. Enter once and forget; autofill uses them seamlessly without prompting."
+                                   FontSize="12" Foreground="#64748B" TextWrapping="Wrap" LineHeight="18" Margin="0,0,0,20"/>
+                        <Button Content="Manage Saved Credentials ⚙" Height="38" Background="#D97706" Foreground="#FFFFFF" FontWeight="Bold"
+                                BorderThickness="0" Click="TileCredentials_Click"/>
                     </StackPanel>
                 </Border>
             </Grid>
         </Grid>
 
         <!-- ================================================================= -->
-        <!-- VIEW 2: SUBMISSIONS LIST & SELECTION SCREEN                      -->
+        <!-- VIEW 2: SUBMISSIONS TABULAR DATAGRID SCREEN                       -->
         <!-- ================================================================= -->
         <Grid x:Name="ViewSubmissionsList" Visibility="Collapsed" Background="#F8FAFC">
             <Grid.RowDefinitions>
@@ -109,39 +129,47 @@
                 </Grid>
             </Border>
 
-            <!-- Submissions Items List -->
-            <Grid Grid.Row="1" Margin="32">
-                <ListBox x:Name="LstSubmissions" Background="Transparent" BorderThickness="0"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                         MouseDoubleClick="LstSubmissions_MouseDoubleClick">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="20">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="{Binding DisplayTitle}" FontSize="16" FontWeight="Bold" Foreground="#0F172A"/>
-                                        <TextBlock Text="{Binding CreatedAt, StringFormat='Captured on: {0}'}" FontSize="12" Foreground="#64748B" Margin="0,3,0,0"/>
-                                    </StackPanel>
-                                    <Border Grid.Column="1" Background="#F1F5F9" CornerRadius="14" Padding="12,6" Margin="16,0" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Status}" FontWeight="SemiBold" FontSize="12" Foreground="#334155"/>
-                                    </Border>
-                                    <Button Grid.Column="2" Content="Review Guests →" Height="36" Padding="16,0" Background="#4F46E5" Foreground="#FFFFFF"
-                                            FontWeight="Bold" BorderThickness="0" Click="BtnSelectSubmission_Click"/>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+            <!-- Tabular Submissions Table -->
+            <Grid Grid.Row="1" Margin="28">
+                <Border Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="8" Padding="12">
+                    <DataGrid x:Name="DgSubmissions" AutoGenerateColumns="False" CanUserAddRows="False"
+                              IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              HorizontalGridLinesBrush="#F1F5F9" RowHeight="44" BorderThickness="0" Background="Transparent"
+                              MouseDoubleClick="DgSubmissions_MouseDoubleClick">
+                        <DataGrid.Columns>
+                            <!-- Date Column -->
+                            <DataGridTextColumn Header="Captured Date" Binding="{Binding CreatedAt}" Width="180"/>
+                            <!-- Reference / Guest Name Column -->
+                            <DataGridTextColumn Header="Lead Guest / Reference" Binding="{Binding DisplayTitle}" Width="*"/>
+                            <!-- Guest Count Column -->
+                            <DataGridTextColumn Header="No. of Guests" Binding="{Binding GuestCount}" Width="120"/>
+                            <!-- Status Column -->
+                            <DataGridTemplateColumn Header="Status" Width="160">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#F1F5F9" CornerRadius="12" Padding="10,4" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Status}" FontWeight="SemiBold" FontSize="11" Foreground="#334155"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <!-- Action Column -->
+                            <DataGridTemplateColumn Header="Action" Width="160">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="Review Guests →" Height="28" Padding="12,0" Background="#4F46E5" Foreground="#FFFFFF"
+                                                FontWeight="Bold" BorderThickness="0" Click="BtnSelectSubmission_Click"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
             </Grid>
         </Grid>
 
         <!-- ================================================================= -->
-        <!-- VIEW 3: MULTI-GUEST SPLIT-SCREEN REVIEW SCREEN                    -->
+        <!-- VIEW 3: MULTI-GUEST SPLIT-SCREEN REVIEW (ISOLATED TO SUBMISSION)  -->
         <!-- ================================================================= -->
         <Grid x:Name="ViewGuestReview" Visibility="Collapsed" Background="#FFFFFF">
             <Grid.RowDefinitions>
@@ -156,30 +184,29 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <Button Grid.Column="0" Content="⬅ Back to Submissions" Height="34" Padding="12,0" FontWeight="SemiBold"
                             Background="#F1F5F9" Foreground="#334155" BorderThickness="0" Click="BtnBackToSubmissions_Click"/>
 
-                    <!-- Guest Carousel Navigation -->
+                    <!-- Guest Carousel Navigation (Strictly Within Selected Submission) -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Button Content="◀ Prev Guest" Height="32" Padding="12,0" Background="#F1F5F9" Foreground="#334155"
+                        <Button x:Name="BtnPrevGuest" Content="◀ Prev Guest" Height="32" Padding="12,0" Background="#F1F5F9" Foreground="#334155"
                                 FontWeight="SemiBold" BorderThickness="0" Click="BtnPrevGuest_Click"/>
-                        <TextBlock x:Name="TxtGuestCounter" Text="Guest 1 of 1" FontSize="14" FontWeight="Bold" Foreground="#0F172A"
+                        <TextBlock x:Name="TxtGuestCounter" Text="Guest 1 of 1: Lead Guest" FontSize="14" FontWeight="Bold" Foreground="#0F172A"
                                    VerticalAlignment="Center" Margin="16,0"/>
-                        <Button Content="Next Guest ▶" Height="32" Padding="12,0" Background="#F1F5F9" Foreground="#334155"
+                        <Button x:Name="BtnNextGuest" Content="Next Guest ▶" Height="32" Padding="12,0" Background="#F1F5F9" Foreground="#334155"
                                 FontWeight="SemiBold" BorderThickness="0" Click="BtnNextGuest_Click"/>
                     </StackPanel>
 
                     <!-- Proceed to Portal Button -->
-                    <Button Grid.Column="3" Content="🚀 Launch Form-C Portal Runner →" Height="36" Padding="20,0"
+                    <Button Grid.Column="2" Content="🚀 Launch Form-C Portal Runner →" Height="36" Padding="20,0"
                             Background="#059669" Foreground="#FFFFFF" FontWeight="Bold" BorderThickness="0"
                             Click="BtnLaunchPortal_Click"/>
                 </Grid>
             </Border>
 
-            <!-- Split View: Document Scans on Left, Form Fields on Right -->
+            <!-- Split View: Document Scans & Portrait on Left, Form Fields on Right -->
             <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="1.1*" MinWidth="480"/>
@@ -187,28 +214,34 @@
                     <ColumnDefinition Width="1*" MinWidth="440"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Left Column: Document Image Inspection -->
+                <!-- Left Column: Document Image & Portrait Inspection -->
                 <Border Grid.Column="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0" Padding="16">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        <!-- Document Type Selector Tabs -->
+
+                        <!-- Document & Photo Type Selector Tabs -->
                         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
                             <RadioButton x:Name="TabPassport" Content="Passport Bio" IsChecked="True" Style="{StaticResource {x:Type ToggleButton}}"
-                                         Padding="12,6" Margin="0,0,6,0" Checked="DocTab_Checked"/>
+                                         Padding="10,6" Margin="0,0,4,0" Checked="DocTab_Checked"/>
                             <RadioButton x:Name="TabVisa" Content="Visa / OCI" Style="{StaticResource {x:Type ToggleButton}}"
-                                         Padding="12,6" Margin="0,0,6,0" Checked="DocTab_Checked"/>
+                                         Padding="10,6" Margin="0,0,4,0" Checked="DocTab_Checked"/>
                             <RadioButton x:Name="TabStamp" Content="Entry Stamp" Style="{StaticResource {x:Type ToggleButton}}"
-                                         Padding="12,6" Margin="0,0,6,0" Checked="DocTab_Checked"/>
-                            <RadioButton x:Name="TabWelcome" Content="Welcome Form" Style="{StaticResource {x:Type ToggleButton}}"
-                                         Padding="12,6" Margin="0,0,6,0" Checked="DocTab_Checked"/>
+                                         Padding="10,6" Margin="0,0,4,0" Checked="DocTab_Checked"/>
+                            <RadioButton x:Name="TabWelcome" Content="Form-C Slip" Style="{StaticResource {x:Type ToggleButton}}"
+                                         Padding="10,6" Margin="0,0,4,0" Checked="DocTab_Checked"/>
+                            <RadioButton x:Name="TabPhoto" Content="Guest Photo" Style="{StaticResource {x:Type ToggleButton}}"
+                                         Padding="10,6" Margin="0,0,4,0" Checked="DocTab_Checked"/>
                         </StackPanel>
-                        <!-- Scrollable / Zoomable Document Image Viewer -->
-                        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="#1E293B">
-                            <Image x:Name="ImgDocumentPreview" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </ScrollViewer>
+
+                        <!-- Scrollable / Zoomable Document Viewer -->
+                        <Border Grid.Row="1" Background="#1E293B" CornerRadius="6" ClipToBounds="True">
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                <Image x:Name="ImgDocumentPreview" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </ScrollViewer>
+                        </Border>
                     </Grid>
                 </Border>
 
@@ -299,7 +332,7 @@
                         <TextBox x:Name="TxtReviewPurposeOfVisit" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
 
                         <TextBlock Text="Permanent Address:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
-                        <TextBox x:Name="TxtReviewAddress" Height="50" TextWrapping="Wrap" Margin="0,2,0,8" VerticalContentAlignment="Top"/>
+                        <TextBox x:Name="TxtReviewAddress" Height="48" TextWrapping="Wrap" Margin="0,2,0,8" VerticalContentAlignment="Top"/>
 
                         <TextBlock Text="Contact Email:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
                         <TextBox x:Name="TxtReviewEmail" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
@@ -332,9 +365,9 @@
                     <Button Grid.Column="0" Content="⬅ Back to Guest Review" Height="34" Padding="12,0" FontWeight="SemiBold"
                             Background="#F1F5F9" Foreground="#334155" BorderThickness="0" Click="BtnBackToGuestReview_Click"/>
 
-                    <!-- Guest Injection Indicator & Carousel -->
+                    <!-- Guest Injection Indicator & Carousel Within Submission -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <TextBlock x:Name="TxtPortalActiveGuest" Text="Active Guest: John Doe (1 of 3)" FontSize="13" FontWeight="Bold"
+                        <TextBlock x:Name="TxtPortalActiveGuest" Text="Active Guest: Lead Guest (1 of 1)" FontSize="13" FontWeight="Bold"
                                    Foreground="#0F172A" VerticalAlignment="Center" Margin="0,0,14,0"/>
                         <Button Content="Switch to Next Guest ➡" Height="30" Padding="10,0" Background="#EEF2FF" Foreground="#4F46E5"
                                 FontWeight="Bold" BorderThickness="0" Click="BtnPortalNextGuest_Click"/>
@@ -356,6 +389,41 @@
 
             <!-- Microsoft WebView2 Workspace -->
             <wv2:WebView2 x:Name="PortalWebView" Grid.Row="1" Source="https://indianfrro.gov.in/frro/FormC/login.jsp"/>
+        </Grid>
+
+        <!-- ================================================================= -->
+        <!-- MODAL OVERLAY: ENCRYPTED CREDENTIALS SETTINGS DIALOG              -->
+        <!-- ================================================================= -->
+        <Grid x:Name="ModalCredentials" Visibility="Collapsed" Background="#80000000">
+            <Border Background="#FFFFFF" Width="440" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    CornerRadius="12" Padding="28" BorderBrush="#E2E8F0" BorderThickness="1">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="30" ShadowDepth="8" Direction="270" Color="#000000" Opacity="0.3"/>
+                </Border.Effect>
+                <StackPanel>
+                    <TextBlock Text="Form-C Portal Credentials" FontSize="18" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,4"/>
+                    <TextBlock Text="Credentials will be securely encrypted using Windows DPAPI and stored in your Windows user profile."
+                               FontSize="12" Foreground="#64748B" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                    <TextBlock Text="User ID / Username:" FontSize="12" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,4"/>
+                    <TextBox x:Name="TxtModalUserId" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,12"/>
+
+                    <TextBlock Text="Password:" FontSize="12" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,4"/>
+                    <PasswordBox x:Name="TxtModalPassword" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,20"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content="Cancel" Height="36" Background="#F1F5F9" Foreground="#475569" FontWeight="SemiBold"
+                                BorderThickness="0" Click="BtnCloseCredsModal_Click"/>
+                        <Button Grid.Column="2" Content="Save Encrypted 🔐" Height="36" Background="#D97706" Foreground="#FFFFFF" FontWeight="Bold"
+                                BorderThickness="0" Click="BtnSaveCredsModal_Click"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
         </Grid>
     </Grid>
 </Window>
