@@ -1,0 +1,36 @@
+## ==============================================================================
+## .gitignore - HomestayDesktopApp (.NET 8 WPF & WebView2)
+## ==============================================================================
+
+# User-specific files and settings
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build output directories (compiled binaries and debug symbols)
+bin/
+obj/
+
+# Visual Studio / VS Code metadata and caches
+.vs/
+.vscode/
+*.DotSettings.user
+
+# Microsoft WebView2 user data folder (stores cookies, local cache, DOM storage)
+*.WebView2/
+HomestayDesktopApp.exe.WebView2/
+
+# Package restore folders and logs
+*.nupkg
+packages/
+project.lock.json
+project.assets.json
+
+# Operating system artifacts
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
