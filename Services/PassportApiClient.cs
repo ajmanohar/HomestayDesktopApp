@@ -1,12 +1,13 @@
 // ==============================================================================
 // PassportApiClient.cs - HomestayDesktopApp (.NET 8 WPF)
 // ==============================================================================
-// Handles asynchronous multipart document uploads and status polling against
-// the PassportReadAPI microservice running on the Dell Micro edge server.
-// Domain: https://api.theasymptotebrief.com via Cloudflare Tunnel
+// Handles asynchronous multipart document uploads, status polling, and batch
+// synchronization against the live Dell Micro edge server over Cloudflare Tunnel.
+// Production Domain: https://api.theasymptotebrief.com/api/v1/
 // ==============================================================================
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -20,14 +21,14 @@ namespace HomestayDesktopApp.Services
     public class PassportApiClient
     {
         // --------------------------------------------------------------------------
-        // Configuration: Base production endpoint served over Cloudflare Tunnel
+        // Configuration: Explicit production endpoint with trailing slash
         // --------------------------------------------------------------------------
-        private const string DefaultBaseUrl = "https://api.theasymptotebrief.com/api/v1";
+        private const string DefaultBaseUrl = "https://api.theasymptotebrief.com/api/v1/";
 
-        // Shared HttpClient instance following .NET socket reuse best practices
+        // Reusable HttpClient instance following .NET socket management standards
         private readonly HttpClient _httpClient;
 
-        // Base URL property for runtime configuration or local mesh testing
+        // Public Base URL property for runtime inspection or local mesh overrides
         public string BaseUrl { get; set; }
 
         /// <summary>
@@ -37,20 +38,53 @@ namespace HomestayDesktopApp.Services
         /// <param name="baseUrl">Optional custom API endpoint URL.</param>
         public PassportApiClient(string? baseUrl = null)
         {
+            // Ensure base URL ends with a trailing slash so relative paths resolve cleanly
             BaseUrl = baseUrl ?? DefaultBaseUrl;
-            
-            // Initialize HttpClient with sufficient timeout for large document inference
+            if (!BaseUrl.EndsWith("/"))
+            {
+                BaseUrl += "/";
+            }
+
+            // Initialize HttpClient with explicit BaseAddress and headers
             _httpClient = new HttpClient
             {
                 BaseAddress = new Uri(BaseUrl),
                 Timeout = TimeSpan.FromSeconds(120)
             };
 
-            // Set default headers to expect JSON responses
+            // Set default headers to expect application/json responses
             _httpClient.DefaultRequestHeaders.Accept.Clear();
             _httpClient.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json")
             );
+        }
+
+        /// <summary>
+        /// Fetches the recent completed and processing jobs from the Dell server backend.
+        /// Maps to GET /api/v1/jobs on PassportReadAPI.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token for aborting the request.</param>
+        /// <returns>List of JobDetailResponse objects retrieved directly from SQLite.</returns>
+        public async Task<List<JobDetailResponse>> GetRecentJobsAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Explicit relative path resolving against BaseAddress (https://api.theasymptotebrief.com/api/v1/)
+                var response = await _httpClient.GetAsync("jobs?limit=50", cancellationToken);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    return new List<JobDetailResponse>();
+                }
+
+                var jsonString = await response.Content.ReadAsStringAsync(cancellationToken);
+                var jobs = JsonSerializer.Deserialize<List<JobDetailResponse>>(jsonString);
+                return jobs ?? new List<JobDetailResponse>();
+            }
+            catch
+            {
+                return new List<JobDetailResponse>();
+            }
         }
 
         /// <summary>
@@ -75,7 +109,7 @@ namespace HomestayDesktopApp.Services
                 throw new FileNotFoundException("Passport bio page image is required and must exist.", passportBioPath);
             }
 
-            // Construct multipart/form-data content
+            // Construct multipart/form-data payload
             using var form = new MultipartFormDataContent();
 
             // 1. Attach primary passport bio image (mandatory)
@@ -116,7 +150,7 @@ namespace HomestayDesktopApp.Services
 
             try
             {
-                // Send multipart POST to /jobs/submit
+                // Send multipart POST request to jobs/submit
                 var response = await _httpClient.PostAsync("jobs/submit", form, cancellationToken);
                 response.EnsureSuccessStatusCode();
 
@@ -157,7 +191,7 @@ namespace HomestayDesktopApp.Services
                 throw new ArgumentException("Job ID cannot be null or empty.", nameof(jobId));
             }
 
-            // Send GET request to /jobs/{jobId}
+            // Send GET request to jobs/{jobId}
             var response = await _httpClient.GetAsync($"jobs/{jobId}", cancellationToken);
             response.EnsureSuccessStatusCode();
 
@@ -171,32 +205,6 @@ namespace HomestayDesktopApp.Services
             }
 
             return result;
-        }
-
-        /// <summary>
-        /// Fetches recent jobs / submissions from the Dell server backend.
-        /// Maps to GET /api/v1/jobs on PassportReadAPI.
-        /// </summary>
-        /// <param name="cancellationToken">Cancellation token.</param>
-        /// <returns>List of recent job summaries.</returns>
-        public async Task<List<JobDetailResponse>> GetRecentJobsAsync(CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                var response = await _httpClient.GetAsync("jobs", cancellationToken);
-                if (!response.IsSuccessStatusCode)
-                {
-                    return new List<JobDetailResponse>();
-                }
-
-                var jsonString = await response.Content.ReadAsStringAsync(cancellationToken);
-                var jobs = JsonSerializer.Deserialize<List<JobDetailResponse>>(jsonString);
-                return jobs ?? new List<JobDetailResponse>();
-            }
-            catch
-            {
-                return new List<JobDetailResponse>();
-            }
         }
     }
 }
