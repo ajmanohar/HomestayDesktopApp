@@ -1,14 +1,15 @@
 // ==============================================================================
 // PassportApiClient.cs - HomestayDesktopApp (.NET 8 WPF)
 // ==============================================================================
-// Handles asynchronous multipart document uploads, status polling, and batch
-// synchronization against the live Dell Micro edge server over Cloudflare Tunnel.
+// Handles asynchronous querying and polling against the live Dell Micro edge server
+// over Cloudflare Tunnel.
+// Dedicated strictly to reading server-ingested submissions and job results
+// (desktop upload ingestion routines have been completely removed).
 // Production Domain: https://api.theasymptotebrief.com/api/v1/
 // ==============================================================================
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -18,22 +19,30 @@ using HomestayDesktopApp.Models;
 
 namespace HomestayDesktopApp.Services
 {
+    /// <summary>
+    /// Communicates with the Dell Micro edge server (PassportReadAPI).
+    /// Provides methods to synchronize recent submissions and poll job details.
+    /// </summary>
     public class PassportApiClient
     {
         // --------------------------------------------------------------------------
         // Configuration: Explicit production endpoint with trailing slash
         // --------------------------------------------------------------------------
+
+        // Default production API endpoint on the Dell edge server via Cloudflare Tunnel
         private const string DefaultBaseUrl = "https://api.theasymptotebrief.com/api/v1/";
 
         // Reusable HttpClient instance following .NET socket management standards
         private readonly HttpClient _httpClient;
 
-        // Public Base URL property for runtime inspection or local mesh overrides
+        /// <summary>
+        /// Public Base URL property for runtime inspection or local network overrides.
+        /// </summary>
         public string BaseUrl { get; set; }
 
         /// <summary>
         /// Initializes the HTTP client configured with a 120-second timeout to handle
-        /// CPU inference latency on Qwen2-VL-2B and Tesseract OCR models.
+        /// inference latency on Qwen2-VL-2B and Tesseract OCR models.
         /// </summary>
         /// <param name="baseUrl">Optional custom API endpoint URL.</param>
         public PassportApiClient(string? baseUrl = null)
@@ -45,14 +54,14 @@ namespace HomestayDesktopApp.Services
                 BaseUrl += "/";
             }
 
-            // Initialize HttpClient with explicit BaseAddress and headers
+            // Initialize HttpClient with explicit BaseAddress and connection timeout
             _httpClient = new HttpClient
             {
                 BaseAddress = new Uri(BaseUrl),
                 Timeout = TimeSpan.FromSeconds(120)
             };
 
-            // Set default headers to expect application/json responses
+            // Configure default request headers to expect application/json responses
             _httpClient.DefaultRequestHeaders.Accept.Clear();
             _httpClient.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json")
@@ -71,107 +80,23 @@ namespace HomestayDesktopApp.Services
             {
                 // Explicit relative path resolving against BaseAddress (https://api.theasymptotebrief.com/api/v1/)
                 var response = await _httpClient.GetAsync("jobs?limit=50", cancellationToken);
-                
+
+                // If non-200 status code is returned, return empty list safely
                 if (!response.IsSuccessStatusCode)
                 {
                     return new List<JobDetailResponse>();
                 }
 
+                // Read and deserialize JSON payload from server
                 var jsonString = await response.Content.ReadAsStringAsync(cancellationToken);
                 var jobs = JsonSerializer.Deserialize<List<JobDetailResponse>>(jsonString);
+
                 return jobs ?? new List<JobDetailResponse>();
             }
             catch
             {
+                // Return an empty list upon connection failure to prevent unhandled UI crashes
                 return new List<JobDetailResponse>();
-            }
-        }
-
-        /// <summary>
-        /// Submits captured document images to the backend extraction queue.
-        /// Maps to POST /api/v1/jobs/submit on PassportReadAPI.
-        /// </summary>
-        /// <param name="passportBioPath">Absolute local path to passport bio image (required).</param>
-        /// <param name="visaPath">Absolute local path to visa / OCI image (optional).</param>
-        /// <param name="entryStampPath">Absolute local path to entry stamp image (optional).</param>
-        /// <param name="welcomeFormPath">Absolute local path to handwritten Form-C slip (optional).</param>
-        /// <param name="cancellationToken">Cancellation token for aborting the upload request.</param>
-        /// <returns>JobDetailResponse containing the assigned job_id and initial QUEUED status.</returns>
-        public async Task<JobDetailResponse> SubmitDocumentsAsync(
-            string passportBioPath,
-            string? visaPath = null,
-            string? entryStampPath = null,
-            string? welcomeFormPath = null,
-            CancellationToken cancellationToken = default)
-        {
-            if (string.IsNullOrWhiteSpace(passportBioPath) || !File.Exists(passportBioPath))
-            {
-                throw new FileNotFoundException("Passport bio page image is required and must exist.", passportBioPath);
-            }
-
-            // Construct multipart/form-data payload
-            using var form = new MultipartFormDataContent();
-
-            // 1. Attach primary passport bio image (mandatory)
-            var bioStream = File.OpenRead(passportBioPath);
-            var bioContent = new StreamContent(bioStream);
-            bioContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
-            form.Add(bioContent, "passport_bio", Path.GetFileName(passportBioPath));
-
-            // 2. Attach visa page if available
-            FileStream? visaStream = null;
-            if (!string.IsNullOrWhiteSpace(visaPath) && File.Exists(visaPath))
-            {
-                visaStream = File.OpenRead(visaPath);
-                var visaContent = new StreamContent(visaStream);
-                visaContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
-                form.Add(visaContent, "visa_page", Path.GetFileName(visaPath));
-            }
-
-            // 3. Attach entry stamp image if available
-            FileStream? stampStream = null;
-            if (!string.IsNullOrWhiteSpace(entryStampPath) && File.Exists(entryStampPath))
-            {
-                stampStream = File.OpenRead(entryStampPath);
-                var stampContent = new StreamContent(stampStream);
-                stampContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
-                form.Add(stampContent, "entry_stamp", Path.GetFileName(entryStampPath));
-            }
-
-            // 4. Attach handwritten welcome form (Form-C Rule 14) if available
-            FileStream? welcomeStream = null;
-            if (!string.IsNullOrWhiteSpace(welcomeFormPath) && File.Exists(welcomeFormPath))
-            {
-                welcomeStream = File.OpenRead(welcomeFormPath);
-                var welcomeContent = new StreamContent(welcomeStream);
-                welcomeContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
-                form.Add(welcomeContent, "welcome_form", Path.GetFileName(welcomeFormPath));
-            }
-
-            try
-            {
-                // Send multipart POST request to jobs/submit
-                var response = await _httpClient.PostAsync("jobs/submit", form, cancellationToken);
-                response.EnsureSuccessStatusCode();
-
-                // Read and deserialize backend response payload
-                var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-                var jobResponse = JsonSerializer.Deserialize<JobDetailResponse>(responseJson);
-
-                if (jobResponse == null)
-                {
-                    throw new InvalidOperationException("Failed to parse backend job submission response.");
-                }
-
-                return jobResponse;
-            }
-            finally
-            {
-                // Ensure all underlying file streams are cleanly disposed
-                bioStream.Dispose();
-                visaStream?.Dispose();
-                stampStream?.Dispose();
-                welcomeStream?.Dispose();
             }
         }
 
@@ -186,6 +111,7 @@ namespace HomestayDesktopApp.Services
             string jobId,
             CancellationToken cancellationToken = default)
         {
+            // Validate input job identifier parameter
             if (string.IsNullOrWhiteSpace(jobId))
             {
                 throw new ArgumentException("Job ID cannot be null or empty.", nameof(jobId));
@@ -195,7 +121,7 @@ namespace HomestayDesktopApp.Services
             var response = await _httpClient.GetAsync($"jobs/{jobId}", cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            // Deserialize response content
+            // Deserialize response content into typed model
             var jsonString = await response.Content.ReadAsStringAsync(cancellationToken);
             var result = JsonSerializer.Deserialize<JobDetailResponse>(jsonString);
 
