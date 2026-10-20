@@ -1,35 +1,63 @@
 // ==============================================================================
-// FormCDomInjector.cs - HomestayDesktopApp
+// FormCDomInjector.cs - HomestayDesktopApp (.NET 8 WPF)
 // ==============================================================================
-// Automation script generator for Microsoft WebView2 in HomestayDesktopApp.
+// Automation script generator and execution bridge for Microsoft WebView2.
 // Injects sanitized guest data into the official Indian Bureau of Immigration
 // Form-C web portal (https://indianfrro.gov.in/frro/FormC/).
 //
-// Critical Anti-Hallucination & Clean Data Principles:
-// - Strictly injects genuine extracted data.
-// - If any field value is null, whitespace, or empty, an empty string ("") is assigned.
-// - NEVER substitutes unrequested fallback strings, dummy addresses, or synthetic placeholders.
-// - Sets values via HTMLInputElement prototype setters and dispatches 'input' and 'change'
-//   events to satisfy reactive JavaScript listeners in the portal DOM.
+// Critical Anti-Hallucination & Architecture Principles:
+// - Accepts Microsoft.Web.WebView2.Wpf.WebView2 in the constructor.
+// - Exposes InjectLoginCredentialsAsync and InjectGuestDetailsAsync returning Task<(bool Success, string Message)>.
+// - Sanitizes all extracted strings (strips dummy tokens like "Parthasarthy Nagar").
+// - If any field value is null or empty, leaves the input blank ("").
+// - Dispatches input, change, and blur DOM events to trigger validation listeners.
 // ==============================================================================
 
 using System;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Threading.Tasks;
+using Microsoft.Web.WebView2.Wpf;
 using HomestayDesktopApp.Models;
 
 namespace HomestayDesktopApp.Services
 {
     /// <summary>
-    /// Service responsible for synthesizing JavaScript injection routines executed inside the WebView2 runtime.
-    /// Safely bridges guest records to DOM controls without exposing credentials or injecting fallback text.
+    /// Service responsible for synthesizing and executing JavaScript routines directly
+    /// within the embedded Microsoft WebView2 Chromium environment.
     /// </summary>
     public class FormCDomInjector
     {
+        // --------------------------------------------------------------------------
+        // Private Fields
+        // --------------------------------------------------------------------------
+
         /// <summary>
-        /// Sanitizes and escapes a candidate string value for safe insertion into a JavaScript string literal.
-        /// Returns an empty string if the value is null, whitespace, or a placeholder token.
+        /// Reference to the WPF WebView2 control hosting the Form-C portal.
+        /// </summary>
+        private readonly WebView2 _webView;
+
+        // --------------------------------------------------------------------------
+        // Constructor
+        // --------------------------------------------------------------------------
+
+        /// <summary>
+        /// Initializes a new instance of FormCDomInjector bound to an active WebView2 instance.
+        /// </summary>
+        /// <param name="webView">The instantiated WPF WebView2 control from MainWindow.</param>
+        public FormCDomInjector(WebView2 webView)
+        {
+            _webView = webView ?? throw new ArgumentNullException(nameof(webView));
+        }
+
+        // --------------------------------------------------------------------------
+        // Sanitization & Anti-Hallucination Guardrails
+        // --------------------------------------------------------------------------
+
+        /// <summary>
+        /// Sanitizes and escapes a candidate string value for safe JavaScript insertion.
+        /// Rejects known mock/placeholder tokens and returns an empty string for null values.
         /// </summary>
         /// <param name="candidate">The raw extracted string value.</param>
         /// <returns>A clean, JavaScript-safe string.</returns>
@@ -41,23 +69,32 @@ namespace HomestayDesktopApp.Services
             }
 
             string trimmed = candidate.Trim();
-
-            // Guard against common placeholder or null strings
             string lower = trimmed.ToLowerInvariant();
+
+            // Guard against common placeholder or null tokens
             if (lower == "null" || lower == "none" || lower == "n/a" || lower == "unknown")
             {
                 return string.Empty;
             }
 
-            // Reject any legacy hallucination remnants if passed through
-            if (lower.Contains("parthasarthy") || lower.Contains("example@domain.com") || lower.Contains("09876543210"))
+            // Reject hallucination remnants
+            if (lower.Contains("parthasarthy") || 
+                lower.Contains("parthasarathy") || 
+                lower.Contains("example@domain.com") || 
+                lower.Contains("09876543210") ||
+                lower.Contains("dummy") ||
+                lower.Contains("lorem ipsum"))
             {
                 return string.Empty;
             }
 
-            // Encode string safely for JavaScript insertion (prevents syntax breaks on quotes/backslashes)
+            // Safely encode for JavaScript insertion
             return JavaScriptEncoder.Default.Encode(trimmed);
         }
+
+        // --------------------------------------------------------------------------
+        // Script Synthesis Routines
+        // --------------------------------------------------------------------------
 
         /// <summary>
         /// Synthesizes the JavaScript snippet to autofill portal login credentials securely.
@@ -86,23 +123,28 @@ namespace HomestayDesktopApp.Services
             sb.AppendLine("        return false;");
             sb.AppendLine("    }");
             sb.AppendLine();
-            sb.AppendLine($"    const uFound = setVal('input[name=\"u_name\"], input[name=\"username\"], #u_name', '{cleanUser}');");
-            sb.AppendLine($"    const pFound = setVal('input[name=\"pass\"], input[name=\"password\"], #pass', '{cleanPass}');");
+            sb.AppendLine($"    const uFound = setVal('input[name=\"u_name\"], input[name=\"username\"], #u_name, input[name=\"u_id\"], #u_id, #txt_uid', '{cleanUser}');");
+            sb.AppendLine($"    const pFound = setVal('input[name=\"pass\"], input[name=\"password\"], #pass, input[name=\"upass\"], #upass, #txt_pwd', '{cleanPass}');");
             sb.AppendLine();
             sb.AppendLine("    // Focus visual CAPTCHA input for rapid manual operator completion");
-            sb.AppendLine("    const captcha = document.querySelector('input[name=\"cap\"], input[name=\"captcha\"], #cap');");
+            sb.AppendLine("    const captcha = document.querySelector('input[name=\"cap\"], input[name=\"captcha\"], #cap, input[name=\"txt_cap\"], #txt_cap');");
             sb.AppendLine("    if (captcha) {");
             sb.AppendLine("        captcha.focus();");
             sb.AppendLine("    }");
-            sb.AppendLine("    console.log(`[FormCInjector] Login injection complete. User: ${uFound}, Pass: ${pFound}`);");
+            sb.AppendLine();
+            sb.AppendLine("    return JSON.stringify({");
+            sb.AppendLine("        success: uFound || pFound,");
+            sb.AppendLine("        userFound: uFound,");
+            sb.AppendLine("        passFound: pFound");
+            sb.AppendLine("    });");
             sb.AppendLine("})();");
 
             return sb.ToString();
         }
 
         /// <summary>
-        /// Synthesizes the JavaScript snippet to populate guest bio-data and Form-C fields into the portal page.
-        /// Operates strictly on authentic extracted data, outputting blank inputs for any missing fields.
+        /// Synthesizes the JavaScript snippet to populate guest bio-data and Form-C fields.
+        /// Operates strictly on authentic extracted data, outputting blank inputs for missing fields.
         /// </summary>
         /// <param name="record">The verified guest record containing extracted bio-data.</param>
         /// <returns>JavaScript string for WebView2 execution.</returns>
@@ -110,10 +152,10 @@ namespace HomestayDesktopApp.Services
         {
             if (record == null)
             {
-                return "// No guest record provided for injection.";
+                return "JSON.stringify({ success: false, message: 'No guest record supplied.' });";
             }
 
-            // Extract and sanitize individual field values (no dummy fallback strings)
+            // Extract and sanitize individual field values
             string surname = CleanValue(record.Surname?.Value);
             string givenNames = CleanValue(record.GivenNames?.Value);
             string sex = CleanValue(record.Sex?.Value);
@@ -145,10 +187,10 @@ namespace HomestayDesktopApp.Services
             var sb = new StringBuilder();
             sb.AppendLine("(function() {");
             sb.AppendLine("    console.log('[FormCInjector] Populating Form-C guest fields...');");
+            sb.AppendLine("    let filledCount = 0;");
             sb.AppendLine();
-            sb.AppendLine("    // Generic element value setter with event dispatching");
             sb.AppendLine("    function assignField(names, val) {");
-            sb.AppendLine("        if (!val) return; // Leave field untouched/blank if value is absent");
+            sb.AppendLine("        if (!val) return false;");
             sb.AppendLine("        for (let i = 0; i < names.length; i++) {");
             sb.AppendLine("            const el = document.querySelector(`input[name=\"${names[i]}\"], select[name=\"${names[i]}\"], textarea[name=\"${names[i]}\"], #${names[i]}`);");
             sb.AppendLine("            if (el) {");
@@ -158,9 +200,11 @@ namespace HomestayDesktopApp.Services
             sb.AppendLine("                el.dispatchEvent(new Event('change', { bubbles: true }));");
             sb.AppendLine("                el.dispatchEvent(new Event('blur', { bubbles: true }));");
             sb.AppendLine("                console.log(`[FormCInjector] Assigned '${names[i]}' = '${val}'`);");
-            sb.AppendLine("                return;");
+            sb.AppendLine("                filledCount++;");
+            sb.AppendLine("                return true;");
             sb.AppendLine("            }");
             sb.AppendLine("        }");
+            sb.AppendLine("        return false;");
             sb.AppendLine("    }");
             sb.AppendLine();
             sb.AppendLine("    // 1. Passport & Identity Details");
@@ -195,10 +239,110 @@ namespace HomestayDesktopApp.Services
             sb.AppendLine($"    assignField(['duration', 'proposed_duration', 'txtDuration'], '{stayDuration}');");
             sb.AppendLine($"    assignField(['purpose', 'purpose_of_visit', 'ddlPurpose'], '{purpose}');");
             sb.AppendLine();
-            sb.AppendLine("    console.log('[FormCInjector] Form fill routine complete.');");
+            sb.AppendLine("    return JSON.stringify({");
+            sb.AppendLine("        success: filledCount > 0,");
+            sb.AppendLine("        count: filledCount");
+            sb.AppendLine("    });");
             sb.AppendLine("})();");
 
             return sb.ToString();
+        }
+
+        // --------------------------------------------------------------------------
+        // WebView2 Execution Bridge Methods
+        // --------------------------------------------------------------------------
+
+        /// <summary>
+        /// Executes credential injection asynchronously inside the active WebView2 runtime.
+        /// </summary>
+        /// <param name="username">Portal username/User ID.</param>
+        /// <param name="password">Portal password.</param>
+        /// <returns>Tuple containing success indicator and user-facing status message.</returns>
+        public async Task<(bool Success, string Message)> InjectLoginCredentialsAsync(string username, string password)
+        {
+            if (_webView.CoreWebView2 == null)
+            {
+                return (false, "WebView2 core engine is not initialized yet.");
+            }
+
+            try
+            {
+                string script = GenerateLoginInjectionScript(username, password);
+                string rawResult = await _webView.CoreWebView2.ExecuteScriptAsync(script);
+
+                if (string.IsNullOrWhiteSpace(rawResult) || rawResult == "null")
+                {
+                    return (false, "Autofill script executed, but login elements were not found on the active page.");
+                }
+
+                // Parse returned JSON from the execution script
+                using var doc = JsonDocument.Parse(rawResult.Trim('"').Replace("\\\"", "\"").Replace("\\\\", "\\"));
+                var root = doc.RootElement;
+                bool success = root.GetProperty("success").GetBoolean();
+                bool userFound = root.GetProperty("userFound").GetBoolean();
+                bool passFound = root.GetProperty("passFound").GetBoolean();
+
+                if (success)
+                {
+                    return (true, $"Credentials populated successfully (User: {userFound}, Password: {passFound}). Enter CAPTCHA to continue.");
+                }
+                else
+                {
+                    return (false, "Could not find login fields on the active page. Ensure you are on the Form-C login page.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Login autofill exception: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Executes guest Form-C field autofill asynchronously inside the active WebView2 runtime.
+        /// </summary>
+        /// <param name="record">Extracted guest bio-data and arrival information.</param>
+        /// <returns>Tuple containing success indicator and user-facing status message.</returns>
+        public async Task<(bool Success, string Message)> InjectGuestDetailsAsync(GuestFormCRecord record)
+        {
+            if (_webView.CoreWebView2 == null)
+            {
+                return (false, "WebView2 core engine is not initialized yet.");
+            }
+
+            if (record == null)
+            {
+                return (false, "No active guest record selected for injection.");
+            }
+
+            try
+            {
+                string script = GenerateFormFillScript(record);
+                string rawResult = await _webView.CoreWebView2.ExecuteScriptAsync(script);
+
+                if (string.IsNullOrWhiteSpace(rawResult) || rawResult == "null")
+                {
+                    return (false, "Form fill script executed, but target input fields were not detected.");
+                }
+
+                // Parse returned JSON from the execution script
+                using var doc = JsonDocument.Parse(rawResult.Trim('"').Replace("\\\"", "\"").Replace("\\\\", "\\"));
+                var root = doc.RootElement;
+                bool success = root.GetProperty("success").GetBoolean();
+                int count = root.TryGetProperty("count", out var cVal) ? cVal.GetInt32() : 0;
+
+                if (success)
+                {
+                    return (true, $"{count} field(s) populated into the active Form-C portal page.");
+                }
+                else
+                {
+                    return (false, "No matching Form-C input elements found on this page. Navigate to the guest entry form.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Field autofill exception: {ex.Message}");
+            }
         }
     }
 }
