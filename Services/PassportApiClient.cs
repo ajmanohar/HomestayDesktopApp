@@ -172,5 +172,31 @@ namespace HomestayDesktopApp.Services
 
             return result;
         }
+
+        /// <summary>
+        /// Fetches recent jobs / submissions from the Dell server backend.
+        /// Maps to GET /api/v1/jobs on PassportReadAPI.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>List of recent job summaries.</returns>
+        public async Task<List<JobDetailResponse>> GetRecentJobsAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync("jobs", cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    return new List<JobDetailResponse>();
+                }
+
+                var jsonString = await response.Content.ReadAsStringAsync(cancellationToken);
+                var jobs = JsonSerializer.Deserialize<List<JobDetailResponse>>(jsonString);
+                return jobs ?? new List<JobDetailResponse>();
+            }
+            catch
+            {
+                return new List<JobDetailResponse>();
+            }
+        }
     }
 }
