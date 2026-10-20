@@ -5,126 +5,225 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         mc:Ignorable="d"
-        Title="Homestay Form-C Desktop Assistant (Kochi)" Height="900" Width="1440"
+        Title="Homestay Form-C Assistant (Kochi)" Height="920" Width="1440"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
-        Background="#F1F5F9">
+        Background="#0F172A">
 
-    <!-- Primary Grid: Split horizontally into Left Workspace and Right Portal View -->
     <Grid>
-        <Grid.ColumnDefinitions>
-            <!-- Left Pane: Document Ingestion, Diagnostics, and Editable Fields -->
-            <ColumnDefinition Width="1.1*" MinWidth="520"/>
-            <!-- Draggable Splitter -->
-            <ColumnDefinition Width="6"/>
-            <!-- Right Pane: Embedded Chromium WebView2 Official Portal -->
-            <ColumnDefinition Width="1.2*" MinWidth="580"/>
-        </Grid.ColumnDefinitions>
-
         <!-- ================================================================= -->
-        <!-- LEFT WORKSPACE: INGESTION, PREVIEW & VERIFICATION                 -->
+        <!-- VIEW 1: HOME DASHBOARD / LANDING SCREEN                           -->
         <!-- ================================================================= -->
-        <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="0,0,1,0">
-            <Grid Margin="16">
-                <Grid.RowDefinitions>
-                    <!-- Header Bar -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- Document Selection & Extraction Actions -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- Status & Diagnostics -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- Scrollable Review Form Fields -->
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
+        <Grid x:Name="ViewDashboard" Visibility="Visible" Background="#F8FAFC">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-                <!-- 1. Header Bar -->
-                <StackPanel Grid.Row="0" Margin="0,0,0,12">
-                    <TextBlock Text="Form-C Desktop Verification" FontSize="20" FontWeight="Bold" Foreground="#0F172A"/>
-                    <TextBlock Text="Ingest guest documents, verify against Dell edge server, and auto-populate." FontSize="12" Foreground="#64748B" Margin="0,2,0,0"/>
-                </StackPanel>
+            <!-- Dashboard Top Navigation Bar -->
+            <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="32,20">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Homestay Form-C Assistant" FontSize="24" FontWeight="Bold" Foreground="#0F172A"/>
+                        <TextBlock Text="Bureau of Immigration Registration &amp; Extraction Hub" FontSize="13" Foreground="#64748B" Margin="0,4,0,0"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="20" Padding="14,6" VerticalAlignment="Center">
+                        <TextBlock Text="● Dell Edge Server Connected" FontSize="12" FontWeight="SemiBold" Foreground="#059669"/>
+                    </Border>
+                </Grid>
+            </Border>
 
-                <!-- 2. Document Selection Toolbar -->
-                <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,12">
-                    <StackPanel>
-                        <TextBlock Text="1. Select Document Artifacts" FontWeight="SemiBold" FontSize="13" Foreground="#1E293B" Margin="0,0,0,8"/>
-                        
-                        <!-- File Pickers -->
-                        <Grid Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="110"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="80"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Passport Bio *:" VerticalAlignment="Center" FontSize="12" Foreground="#475569"/>
-                            <TextBox x:Name="TxtPassportPath" Grid.Column="1" Height="26" VerticalContentAlignment="Center" IsReadOnly="True" Margin="4,0,4,0"/>
-                            <Button x:Name="BtnBrowsePassport" Grid.Column="2" Content="Browse..." Height="26" Click="BtnBrowsePassport_Click"/>
-                        </Grid>
+            <!-- Action Tiles Grid -->
+            <Grid Grid.Row="1" Margin="40" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="420"/>
+                    <ColumnDefinition Width="40"/>
+                    <ColumnDefinition Width="420"/>
+                </Grid.ColumnDefinitions>
 
-                        <Grid Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="110"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="80"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Visa / OCI:" VerticalAlignment="Center" FontSize="12" Foreground="#475569"/>
-                            <TextBox x:Name="TxtVisaPath" Grid.Column="1" Height="26" VerticalContentAlignment="Center" IsReadOnly="True" Margin="4,0,4,0"/>
-                            <Button x:Name="BtnBrowseVisa" Grid.Column="2" Content="Browse..." Height="26" Click="BtnBrowseVisa_Click"/>
-                        </Grid>
-
-                        <Grid Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="110"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="80"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Entry Stamp:" VerticalAlignment="Center" FontSize="12" Foreground="#475569"/>
-                            <TextBox x:Name="TxtStampPath" Grid.Column="1" Height="26" VerticalContentAlignment="Center" IsReadOnly="True" Margin="4,0,4,0"/>
-                            <Button x:Name="BtnBrowseStamp" Grid.Column="2" Content="Browse..." Height="26" Click="BtnBrowseStamp_Click"/>
-                        </Grid>
-
-                        <Grid Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="110"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="80"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Welcome Form:" VerticalAlignment="Center" FontSize="12" Foreground="#475569"/>
-                            <TextBox x:Name="TxtWelcomePath" Grid.Column="1" Height="26" VerticalContentAlignment="Center" IsReadOnly="True" Margin="4,0,4,0"/>
-                            <Button x:Name="BtnBrowseWelcome" Grid.Column="2" Content="Browse..." Height="26" Click="BtnBrowseWelcome_Click"/>
-                        </Grid>
-
-                        <!-- Action Buttons -->
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
-                            <Button x:Name="BtnProcessDocuments" Content="🚀 Send for Server Extraction" Height="32" Padding="14,0" 
-                                    Background="#2563EB" Foreground="#FFFFFF" FontWeight="Bold" BorderThickness="0"
-                                    Click="BtnProcessDocuments_Click"/>
-                        </StackPanel>
+                <!-- TILE 1 (PRIMARY): REVIEW & RETRIEVE SUBMISSIONS -->
+                <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="12" Padding="28"
+                        Cursor="Hand" MouseLeftButtonUp="TileRetrieveSubmissions_Click">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="20" ShadowDepth="4" Direction="270" Color="#94A3B8" Opacity="0.15"/>
+                    </Border.Effect>
+                    <StackPanel VerticalAlignment="Center">
+                        <Border Background="#EEF2FF" Width="64" Height="64" CornerRadius="32" HorizontalAlignment="Left" Margin="0,0,0,20">
+                            <TextBlock Text="📂" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Review &amp; Retrieve Submissions" FontSize="20" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
+                        <TextBlock Text="Fetch guest batches submitted via mobile or desktop. Inspect extracted documents, cycle through all guests, and launch automated Form-C filing."
+                                   FontSize="13" Foreground="#64748B" TextWrapping="Wrap" LineHeight="20" Margin="0,0,0,24"/>
+                        <Button Content="Open Submissions List →" Height="40" Background="#4F46E5" Foreground="#FFFFFF" FontWeight="Bold"
+                                BorderThickness="0" Click="TileRetrieveSubmissions_Click"/>
                     </StackPanel>
                 </Border>
 
-                <!-- 3. Status & Diagnostics Strip -->
-                <Border Grid.Row="2" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,12">
+                <!-- TILE 2: NEW DESKTOP CAPTURE & EXTRACTION -->
+                <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="12" Padding="28"
+                        Cursor="Hand" MouseLeftButtonUp="TileNewCapture_Click">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="20" ShadowDepth="4" Direction="270" Color="#94A3B8" Opacity="0.15"/>
+                    </Border.Effect>
+                    <StackPanel VerticalAlignment="Center">
+                        <Border Background="#F0FDF4" Width="64" Height="64" CornerRadius="32" HorizontalAlignment="Left" Margin="0,0,0,20">
+                            <TextBlock Text="🚀" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="New Desktop Ingestion" FontSize="20" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
+                        <TextBlock Text="Select passport, visa, stamp, and physical welcome slip images stored on this desktop. Dispatch to Dell server for OCR and visual extraction."
+                                   FontSize="13" Foreground="#64748B" TextWrapping="Wrap" LineHeight="20" Margin="0,0,0,24"/>
+                        <Button Content="Select Local Files &amp; Ingest →" Height="40" Background="#059669" Foreground="#FFFFFF" FontWeight="Bold"
+                                BorderThickness="0" Click="TileNewCapture_Click"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- ================================================================= -->
+        <!-- VIEW 2: SUBMISSIONS LIST & SELECTION SCREEN                      -->
+        <!-- ================================================================= -->
+        <Grid x:Name="ViewSubmissionsList" Visibility="Collapsed" Background="#F8FAFC">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Navigation Bar -->
+            <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="24,14">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="⬅ Back to Dashboard" Height="34" Padding="14,0" FontWeight="SemiBold"
+                            Background="#F1F5F9" Foreground="#334155" BorderThickness="0" Click="BtnBackToDashboard_Click"/>
+                    <TextBlock Grid.Column="1" Text="Recent Homestay Submissions" FontSize="18" FontWeight="Bold" Foreground="#0F172A"
+                               VerticalAlignment="Center" Margin="20,0,0,0"/>
+                    <Button Grid.Column="2" Content="⟳ Refresh Submissions" Height="34" Padding="14,0" FontWeight="SemiBold"
+                            Background="#EEF2FF" Foreground="#4F46E5" BorderThickness="0" Click="BtnRefreshSubmissions_Click"/>
+                </Grid>
+            </Border>
+
+            <!-- Submissions Items List -->
+            <Grid Grid.Row="1" Margin="32">
+                <ListBox x:Name="LstSubmissions" Background="Transparent" BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         MouseDoubleClick="LstSubmissions_MouseDoubleClick">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="20">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding DisplayTitle}" FontSize="16" FontWeight="Bold" Foreground="#0F172A"/>
+                                        <TextBlock Text="{Binding CreatedAt, StringFormat='Captured on: {0}'}" FontSize="12" Foreground="#64748B" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Background="#F1F5F9" CornerRadius="14" Padding="12,6" Margin="16,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Status}" FontWeight="SemiBold" FontSize="12" Foreground="#334155"/>
+                                    </Border>
+                                    <Button Grid.Column="2" Content="Review Guests →" Height="36" Padding="16,0" Background="#4F46E5" Foreground="#FFFFFF"
+                                            FontWeight="Bold" BorderThickness="0" Click="BtnSelectSubmission_Click"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Grid>
+
+        <!-- ================================================================= -->
+        <!-- VIEW 3: MULTI-GUEST SPLIT-SCREEN REVIEW SCREEN                    -->
+        <!-- ================================================================= -->
+        <Grid x:Name="ViewGuestReview" Visibility="Collapsed" Background="#FFFFFF">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Top Header & Guest Carousel Control -->
+            <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="20,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0" Content="⬅ Back to Submissions" Height="34" Padding="12,0" FontWeight="SemiBold"
+                            Background="#F1F5F9" Foreground="#334155" BorderThickness="0" Click="BtnBackToSubmissions_Click"/>
+
+                    <!-- Guest Carousel Navigation -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Button Content="◀ Prev Guest" Height="32" Padding="12,0" Background="#F1F5F9" Foreground="#334155"
+                                FontWeight="SemiBold" BorderThickness="0" Click="BtnPrevGuest_Click"/>
+                        <TextBlock x:Name="TxtGuestCounter" Text="Guest 1 of 1" FontSize="14" FontWeight="Bold" Foreground="#0F172A"
+                                   VerticalAlignment="Center" Margin="16,0"/>
+                        <Button Content="Next Guest ▶" Height="32" Padding="12,0" Background="#F1F5F9" Foreground="#334155"
+                                FontWeight="SemiBold" BorderThickness="0" Click="BtnNextGuest_Click"/>
+                    </StackPanel>
+
+                    <!-- Proceed to Portal Button -->
+                    <Button Grid.Column="3" Content="🚀 Launch Form-C Portal Runner →" Height="36" Padding="20,0"
+                            Background="#059669" Foreground="#FFFFFF" FontWeight="Bold" BorderThickness="0"
+                            Click="BtnLaunchPortal_Click"/>
+                </Grid>
+            </Border>
+
+            <!-- Split View: Document Scans on Left, Form Fields on Right -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.1*" MinWidth="480"/>
+                    <ColumnDefinition Width="4"/>
+                    <ColumnDefinition Width="1*" MinWidth="440"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left Column: Document Image Inspection -->
+                <Border Grid.Column="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0" Padding="16">
                     <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock x:Name="TxtStatus" Grid.Column="0" Text="Status: Idle (Ready to ingest)" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" Foreground="#334155"/>
-                        <ProgressBar x:Name="PbExtraction" Grid.Column="1" Width="140" Height="14" IsIndeterminate="False" Visibility="Collapsed"/>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <!-- Document Type Selector Tabs -->
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+                            <RadioButton x:Name="TabPassport" Content="Passport Bio" IsChecked="True" Style="{StaticResource {x:Type ToggleButton}}"
+                                         Padding="12,6" Margin="0,0,6,0" Checked="DocTab_Checked"/>
+                            <RadioButton x:Name="TabVisa" Content="Visa / OCI" Style="{StaticResource {x:Type ToggleButton}}"
+                                         Padding="12,6" Margin="0,0,6,0" Checked="DocTab_Checked"/>
+                            <RadioButton x:Name="TabStamp" Content="Entry Stamp" Style="{StaticResource {x:Type ToggleButton}}"
+                                         Padding="12,6" Margin="0,0,6,0" Checked="DocTab_Checked"/>
+                            <RadioButton x:Name="TabWelcome" Content="Welcome Form" Style="{StaticResource {x:Type ToggleButton}}"
+                                         Padding="12,6" Margin="0,0,6,0" Checked="DocTab_Checked"/>
+                        </StackPanel>
+                        <!-- Scrollable / Zoomable Document Image Viewer -->
+                        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="#1E293B">
+                            <Image x:Name="ImgDocumentPreview" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </ScrollViewer>
                     </Grid>
                 </Border>
 
-                <!-- 4. Scrollable Form Review & Edit -->
-                <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Margin="0,0,8,0">
-                        <TextBlock Text="2. Verified Form-C Bio-Data (Rule 14)" FontWeight="Bold" FontSize="14" Foreground="#1E293B" Margin="0,0,0,10"/>
+                <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="#E2E8F0"/>
 
-                        <!-- Personal & Identity -->
+                <!-- Right Column: Form-C Field Editor -->
+                <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="20">
+                    <StackPanel>
+                        <TextBlock Text="Form-C Arrival Bio-Data (Rule 14)" FontSize="16" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,12"/>
+
                         <TextBlock Text="Surname:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
-                        <TextBox x:Name="TxtSurname" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
+                        <TextBox x:Name="TxtReviewSurname" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
 
                         <TextBlock Text="Given Names:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
-                        <TextBox x:Name="TxtGivenNames" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
+                        <TextBox x:Name="TxtReviewGivenNames" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
 
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
@@ -134,11 +233,11 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Sex (M/F):" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
-                                <TextBox x:Name="TxtSex" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="TxtReviewSex" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="Date of Birth:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
-                                <TextBox x:Name="TxtDob" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="TxtReviewDob" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
                             </StackPanel>
                         </Grid>
 
@@ -150,15 +249,14 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Passport Number:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
-                                <TextBox x:Name="TxtPassportNumber" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="TxtReviewPassportNumber" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="Nationality:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
-                                <TextBox x:Name="TxtNationality" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="TxtReviewNationality" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
                             </StackPanel>
                         </Grid>
 
-                        <!-- Visa & Entry Stamp -->
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -167,11 +265,11 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Visa Number:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
-                                <TextBox x:Name="TxtVisaNumber" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="TxtReviewVisaNumber" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="Visa Type:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
-                                <TextBox x:Name="TxtVisaType" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="TxtReviewVisaType" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
                             </StackPanel>
                         </Grid>
 
@@ -183,83 +281,80 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Arrival Date (India):" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
-                                <TextBox x:Name="TxtArrivalDate" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="TxtReviewArrivalDate" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="Arrival Port (India):" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
-                                <TextBox x:Name="TxtArrivalPort" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
+                                <TextBox x:Name="TxtReviewArrivalPort" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
                             </StackPanel>
                         </Grid>
 
-                        <!-- Homestay Movement -->
                         <TextBlock Text="Arrived From:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
-                        <TextBox x:Name="TxtArrivedFrom" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
+                        <TextBox x:Name="TxtReviewArrivedFrom" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
 
                         <TextBlock Text="Proceeding To:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
-                        <TextBox x:Name="TxtProceedingTo" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
+                        <TextBox x:Name="TxtReviewProceedingTo" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
 
                         <TextBlock Text="Purpose of Visit:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
-                        <TextBox x:Name="TxtPurposeOfVisit" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
+                        <TextBox x:Name="TxtReviewPurposeOfVisit" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
+
+                        <TextBlock Text="Permanent Address:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
+                        <TextBox x:Name="TxtReviewAddress" Height="50" TextWrapping="Wrap" Margin="0,2,0,8" VerticalContentAlignment="Top"/>
 
                         <TextBlock Text="Contact Email:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
-                        <TextBox x:Name="TxtEmail" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
+                        <TextBox x:Name="TxtReviewEmail" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
 
                         <TextBlock Text="Contact Phone:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
-                        <TextBox x:Name="TxtPhone" Height="28" Margin="0,2,0,16" VerticalContentAlignment="Center"/>
+                        <TextBox x:Name="TxtReviewPhone" Height="28" Margin="0,2,0,16" VerticalContentAlignment="Center"/>
                     </StackPanel>
                 </ScrollViewer>
             </Grid>
-        </Border>
+        </Grid>
 
         <!-- ================================================================= -->
-        <!-- DRAGGABLE SPLITTER                                                -->
+        <!-- VIEW 4: OFFICIAL FORM-C PORTAL RUNNER WORKSPACE                  -->
         <!-- ================================================================= -->
-        <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="#E2E8F0" ResizeDirection="Columns"/>
-
-        <!-- ================================================================= -->
-        <!-- RIGHT WORKSPACE: MICROSOFT WEBVIEW2 PORTAL AUTOMATION             -->
-        <!-- ================================================================= -->
-        <Grid Grid.Column="2">
+        <Grid x:Name="ViewPortalRunner" Visibility="Collapsed" Background="#FFFFFF">
             <Grid.RowDefinitions>
-                <!-- Quick Automation Toolbar -->
                 <RowDefinition Height="Auto"/>
-                <!-- Browser Viewport -->
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- Automation Control Bar -->
-            <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="0,0,0,1" Padding="12,10">
+            <!-- Portal Automation Top Bar -->
+            <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="16,10">
                 <Grid>
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock Text="Official BoI Form-C Portal" FontSize="14" FontWeight="Bold" Foreground="#0F172A"/>
-                        <TextBlock x:Name="TxtCurrentUrl" Text="https://indianfrro.gov.in/frro/FormC/login.jsp" FontSize="11" Foreground="#64748B" TextTrimming="CharacterEllipsis"/>
+                    <Button Grid.Column="0" Content="⬅ Back to Guest Review" Height="34" Padding="12,0" FontWeight="SemiBold"
+                            Background="#F1F5F9" Foreground="#334155" BorderThickness="0" Click="BtnBackToGuestReview_Click"/>
+
+                    <!-- Guest Injection Indicator & Carousel -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock x:Name="TxtPortalActiveGuest" Text="Active Guest: John Doe (1 of 3)" FontSize="13" FontWeight="Bold"
+                                   Foreground="#0F172A" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                        <Button Content="Switch to Next Guest ➡" Height="30" Padding="10,0" Background="#EEF2FF" Foreground="#4F46E5"
+                                FontWeight="Bold" BorderThickness="0" Click="BtnPortalNextGuest_Click"/>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <!-- Portal Autofill Credentials -->
-                        <Button x:Name="BtnAutofillLogin" Content="🔑 Autofill Login" Height="32" Padding="12,0" Margin="0,0,8,0"
+                    <!-- Quick Automation Actions -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <Button Content="🔑 Autofill Login" Height="34" Padding="14,0" Margin="0,0,8,0"
                                 Background="#059669" Foreground="#FFFFFF" FontWeight="Bold" BorderThickness="0"
                                 Click="BtnAutofillLogin_Click"/>
-
-                        <!-- Portal Autofill Guest Fields -->
-                        <Button x:Name="BtnAutofillFields" Content="📝 Inject Guest Fields" Height="32" Padding="12,0" Margin="0,0,8,0"
+                        <Button Content="📝 Inject Active Guest Fields" Height="34" Padding="14,0" Margin="0,0,8,0"
                                 Background="#7C3AED" Foreground="#FFFFFF" FontWeight="Bold" BorderThickness="0"
                                 Click="BtnAutofillFields_Click"/>
-
-                        <!-- Reload View -->
-                        <Button x:Name="BtnReloadWeb" Content="⟳" Height="32" Width="36" FontWeight="Bold"
-                                Background="#E2E8F0" Foreground="#1E293B" BorderThickness="0"
-                                Click="BtnReloadWeb_Click"/>
+                        <Button Content="⟳" Height="34" Width="38" Background="#E2E8F0" Foreground="#1E293B" FontWeight="Bold"
+                                BorderThickness="0" Click="BtnReloadWeb_Click"/>
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- Chromium WebView2 Workspace -->
+            <!-- Microsoft WebView2 Workspace -->
             <wv2:WebView2 x:Name="PortalWebView" Grid.Row="1" Source="https://indianfrro.gov.in/frro/FormC/login.jsp"/>
         </Grid>
     </Grid>
