@@ -2,8 +2,9 @@
 // MainWindow.xaml.cs - HomestayDesktopApp (.NET 8 WPF)
 // ==============================================================================
 // Strictly operates against real live submissions from the Dell Edge Server
+// Features: Default whole-image fitting, interactive zoom/pan controls,
+// and guest portrait photo streaming.
 // Domain: https://api.theasymptotebrief.com via Cloudflare Tunnel
-// Zero mock/demo fallbacks.
 // ==============================================================================
 
 using System;
@@ -12,6 +13,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using HomestayDesktopApp.Models;
@@ -31,6 +33,9 @@ namespace HomestayDesktopApp
         private List<SubmissionSummary> _submissionsList = new List<SubmissionSummary>();
         private SubmissionSummary? _selectedSubmission;
         private int _currentGuestIndex = 0;
+
+        // Zoom state tracking
+        private double _currentZoomScale = 1.0;
 
         /// <summary>
         /// Constructor: Initializes client targeting Dell server and hooks WebView2.
@@ -177,7 +182,6 @@ namespace HomestayDesktopApp
         {
             try
             {
-                // Query live Dell Edge Server for processed submissions
                 var jobs = await _apiClient.GetRecentJobsAsync();
                 _submissionsList = new List<SubmissionSummary>();
 
@@ -214,7 +218,6 @@ namespace HomestayDesktopApp
                     _submissionsList.Add(summary);
                 }
 
-                // Strictly bind live server submissions without any synthetic/mock fallback
                 DgSubmissions.ItemsSource = _submissionsList;
             }
             catch (Exception ex)
@@ -235,7 +238,7 @@ namespace HomestayDesktopApp
             }
         }
 
-        private void DgSubmissions_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void DgSubmissions_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             if (DgSubmissions.SelectedItem is SubmissionSummary submission)
             {
@@ -245,7 +248,6 @@ namespace HomestayDesktopApp
 
         private void OpenSubmissionReview(SubmissionSummary submission)
         {
-            // Strict isolation: Review is confined solely to this selected submission
             _selectedSubmission = submission;
             _currentGuestIndex = 0;
             ShowGuestReview();
@@ -263,7 +265,6 @@ namespace HomestayDesktopApp
             int totalGuests = _selectedSubmission.Guests.Count;
             var guest = _selectedSubmission.Guests[_currentGuestIndex];
 
-            // Update counter and navigation boundary controls
             TxtGuestCounter.Text = $"Guest {_currentGuestIndex + 1} of {totalGuests}: {guest.GuestName}";
             BtnPrevGuest.IsEnabled = _currentGuestIndex > 0;
             BtnNextGuest.IsEnabled = _currentGuestIndex < totalGuests - 1;
@@ -286,7 +287,6 @@ namespace HomestayDesktopApp
             TxtReviewEmail.Text = rec.ContactEmail?.Value ?? "";
             TxtReviewPhone.Text = rec.ContactPhone?.Value ?? "";
 
-            // Refresh document preview image based on active tab
             UpdateDocumentImagePreview();
         }
 
@@ -295,12 +295,17 @@ namespace HomestayDesktopApp
             if (_selectedSubmission == null || _selectedSubmission.Guests.Count == 0) return;
             var guest = _selectedSubmission.Guests[_currentGuestIndex];
 
+            // Build image endpoint matching active tab
+            string serverBase = "https://api.theasymptotebrief.com/api/v1/jobs/" + _selectedSubmission.Id + "/image/";
             string? imageUrl = null;
-            if (TabPassport.IsChecked == true) imageUrl = guest.PassportImageUrl;
-            else if (TabVisa.IsChecked == true) imageUrl = guest.VisaImageUrl;
-            else if (TabStamp.IsChecked == true) imageUrl = guest.StampImageUrl;
-            else if (TabWelcome.IsChecked == true) imageUrl = guest.WelcomeFormImageUrl;
-            else if (TabPhoto != null && TabPhoto.IsChecked == true) imageUrl = guest.PassportImageUrl;
+
+            if (TabPassport.IsChecked == true) imageUrl = serverBase + "passport_bio";
+            else if (TabVisa.IsChecked == true) imageUrl = serverBase + "visa_page";
+            else if (TabStamp.IsChecked == true) imageUrl = serverBase + "entry_stamp";
+            else if (TabWelcome.IsChecked == true) imageUrl = serverBase + "welcome_form";
+            else if (TabPhoto.IsChecked == true) imageUrl = serverBase + "guest_photo";
+
+            ResetImageZoom();
 
             try
             {
@@ -321,6 +326,73 @@ namespace HomestayDesktopApp
             catch
             {
                 ImgDocumentPreview.Source = null;
+            }
+        }
+
+        // --------------------------------------------------------------------------
+        // Zoom and Image Pan Controls
+        // --------------------------------------------------------------------------
+
+        private void ResetImageZoom()
+        {
+            _currentZoomScale = 1.0;
+            ApplyZoom();
+        }
+
+        private void ApplyZoom()
+        {
+            if (ImageScaleTransform != null)
+            {
+                ImageScaleTransform.ScaleX = _currentZoomScale;
+                ImageScaleTransform.ScaleY = _currentZoomScale;
+            }
+            if (TxtZoomLevel != null)
+            {
+                int pct = (int)Math.Round(_currentZoomScale * 100);
+                TxtZoomLevel.Text = _currentZoomScale == 1.0 ? "Zoom: Fit to Window (100%)" : $"Zoom: {pct}%";
+            }
+        }
+
+        private void BtnZoomIn_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentZoomScale < 4.0)
+            {
+                _currentZoomScale += 0.25;
+                ApplyZoom();
+            }
+        }
+
+        private void BtnZoomOut_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentZoomScale > 0.5)
+            {
+                _currentZoomScale -= 0.25;
+                ApplyZoom();
+            }
+        }
+
+        private void BtnZoomReset_Click(object sender, RoutedEventArgs e)
+        {
+            ResetImageZoom();
+        }
+
+        private void ImgScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            // Zoom in or out with Ctrl + MouseWheel
+            if (Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                if (e.Delta > 0 && _currentZoomScale < 4.0)
+                {
+                    _currentZoomScale += 0.15;
+                    ApplyZoom();
+                    e.Handled = true;
+                }
+                else if (e.Delta < 0 && _currentZoomScale > 0.5)
+                {
+                    _currentZoomScale -= 0.15;
+                    ApplyZoom();
+                    e.Handled = true;
+                }
             }
         }
 

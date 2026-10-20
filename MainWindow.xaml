@@ -218,12 +218,16 @@
                 <Border Grid.Column="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0" Padding="16">
                     <Grid>
                         <Grid.RowDefinitions>
+                            <!-- Tab Bar -->
                             <RowDefinition Height="Auto"/>
+                            <!-- Zoom Toolbar -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- Zoomable / Pannable Image Viewport -->
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
                         <!-- Document & Photo Type Selector Tabs -->
-                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
                             <RadioButton x:Name="TabPassport" Content="Passport Bio" IsChecked="True" Style="{StaticResource {x:Type ToggleButton}}"
                                          Padding="10,6" Margin="0,0,4,0" Checked="DocTab_Checked"/>
                             <RadioButton x:Name="TabVisa" Content="Visa / OCI" Style="{StaticResource {x:Type ToggleButton}}"
@@ -236,10 +240,36 @@
                                          Padding="10,6" Margin="0,0,4,0" Checked="DocTab_Checked"/>
                         </StackPanel>
 
+                        <!-- Interactive Zoom Bar -->
+                        <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="8,4" Margin="0,0,0,8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="TxtZoomLevel" Grid.Column="0" Text="Zoom: Fit to Window (100%)" FontSize="11" Foreground="#64748B" VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button Content="− Zoom Out" Height="24" Padding="8,0" Margin="0,0,4,0" FontSize="11"
+                                            Background="#F1F5F9" Foreground="#334155" BorderThickness="0" Click="BtnZoomOut_Click"/>
+                                    <Button Content="Fit Entire Image" Height="24" Padding="8,0" Margin="0,0,4,0" FontSize="11"
+                                            Background="#EEF2FF" Foreground="#4F46E5" FontWeight="SemiBold" BorderThickness="0" Click="BtnZoomReset_Click"/>
+                                    <Button Content="+ Zoom In" Height="24" Padding="8,0" FontSize="11"
+                                            Background="#F1F5F9" Foreground="#334155" BorderThickness="0" Click="BtnZoomIn_Click"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
                         <!-- Scrollable / Zoomable Document Viewer -->
-                        <Border Grid.Row="1" Background="#1E293B" CornerRadius="6" ClipToBounds="True">
-                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                                <Image x:Name="ImgDocumentPreview" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border x:Name="ViewerContainer" Grid.Row="2" Background="#0F172A" CornerRadius="6" ClipToBounds="True">
+                            <ScrollViewer x:Name="ImgScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                                          PreviewMouseWheel="ImgScrollViewer_PreviewMouseWheel">
+                                <Grid x:Name="ImageGrid" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Image x:Name="ImgDocumentPreview" Stretch="Uniform">
+                                        <Image.LayoutTransform>
+                                            <ScaleTransform x:Name="ImageScaleTransform" ScaleX="1.0" ScaleY="1.0"/>
+                                        </Image.LayoutTransform>
+                                    </Image>
+                                </Grid>
                             </ScrollViewer>
                         </Border>
                     </Grid>
