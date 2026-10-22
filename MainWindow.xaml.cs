@@ -1,11 +1,13 @@
 ﻿// ==============================================================================
 // MainWindow.xaml.cs - HomestayDesktopApp (.NET 8 WPF)
 // ==============================================================================
-// Strictly operates against real live submissions from the Dell Edge Server.
-// Features: Default whole-image fitting, interactive zoom/pan controls,
-// authenticated binary image streaming with Bearer token authorization,
-// and guest portrait photo streaming with passport bio fallback.
-// Domain: https://api.theasymptotebrief.com via Cloudflare Tunnel
+// Orchestrates the desktop workflow strictly for:
+// 1. Retrieving live mobile-captured submissions from the Dell Edge Server.
+// 2. Dual-pane inspection of documents (with auto-fit and zoom controls).
+// 3. Automated Form-C portal filing with DPAPI-encrypted credential storage.
+// 4. Task 42 & 48: Support for Dual Visa tabs (e-Visa Doc vs. Visa Stamp),
+//    explicit (DD-MM-YYYY) format fields, and saving manual operator overrides.
+// Production Edge Server: https://api.theasymptotebrief.com via Cloudflare Tunnel
 // ==============================================================================
 
 using System;
@@ -16,44 +18,52 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
-using Microsoft.Win32;
 using HomestayDesktopApp.Models;
 using HomestayDesktopApp.Services;
 
 namespace HomestayDesktopApp
 {
+    /// <summary>
+    /// Interaction logic for MainWindow.xaml.
+    /// Manages view transitions across Dashboard, Submissions DataGrid, Review, and Portal Runner.
+    /// </summary>
     public partial class MainWindow : Window
     {
         // --------------------------------------------------------------------------
         // State & Backing Services
         // --------------------------------------------------------------------------
+
+        // API client configured for communication with the Dell Micro edge server
         private readonly PassportApiClient _apiClient;
+
+        // Recursive DOM automation engine for WebView2 Form-C portal interaction
         private FormCDomInjector? _domInjector;
 
-        // Current Active Submissions & Selected Guest Navigation
+        // Cached list of submissions retrieved from the server
         private List<SubmissionSummary> _submissionsList = new List<SubmissionSummary>();
+
+        // Currently selected submission record for review and filing
         private SubmissionSummary? _selectedSubmission;
+
+        // Active guest index within the selected submission (0-based)
         private int _currentGuestIndex = 0;
 
-        // Zoom scale tracking (1.0 = fit to container frame)
+        // Zoom scale tracking for document inspection (1.0 = 100% fit to container frame)
         private double _currentZoomScale = 1.0;
 
         /// <summary>
-        /// Constructor: Initializes client targeting Dell server and hooks WebView2.
+        /// Initializes the MainWindow component and instantiates the backend API client.
+        /// Hooks into the Window Loaded event to initialize Microsoft WebView2.
         /// </summary>
         public MainWindow()
         {
             InitializeComponent();
-
-            // Initialize API Client communicating with live Dell Edge Server with Bearer token
             _apiClient = new PassportApiClient();
-
-            // Ensure WebView2 is initialized
             Loaded += MainWindow_Loaded;
         }
 
         /// <summary>
-        /// Asynchronously initializes Microsoft WebView2 control.
+        /// Asynchronously initializes the Microsoft WebView2 Chromium engine.
         /// </summary>
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
@@ -145,11 +155,12 @@ namespace HomestayDesktopApp
 
             CredentialStorageService.SaveCredentials(user, pass);
             ModalCredentials.Visibility = Visibility.Collapsed;
+
             MessageBox.Show("Form-C portal credentials securely encrypted and saved via Windows DPAPI.", "Credentials Saved", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         // --------------------------------------------------------------------------
-        // Screen 2: Submissions Retrieval & Tabular DataGrid (Live Server Only)
+        // Screen 2: Submissions Retrieval & Tabular DataGrid
         // --------------------------------------------------------------------------
 
         private async Task LoadSubmissionsAsync()
@@ -165,6 +176,8 @@ namespace HomestayDesktopApp
                         ? $"{job.Result.GivenNames.Value} {job.Result.Surname?.Value}".Trim()
                         : "Lead Guest";
 
+                    string serverBase = "https://api.theasymptotebrief.com/api/v1/jobs/" + job.JobId + "/image/";
+
                     var summary = new SubmissionSummary
                     {
                         Id = job.JobId,
@@ -178,6 +191,10 @@ namespace HomestayDesktopApp
                             {
                                 GuestIndex = 0,
                                 GuestName = leadGuestName,
+                                PassportImageUrl = serverBase + "passport_bio",
+                                VisaImageUrl = serverBase + "visa_page",
+                                StampImageUrl = serverBase + "entry_stamp",
+                                WelcomeFormImageUrl = serverBase + "welcome_form",
                                 ExtractedRecord = job.Result ?? new GuestFormCRecord()
                             }
                         }
@@ -222,7 +239,7 @@ namespace HomestayDesktopApp
         }
 
         // --------------------------------------------------------------------------
-        // Screen 3: Multi-Guest Carousel & Review (Strictly Scoped to Submission)
+        // Screen 3: Multi-Guest Carousel & Review
         // --------------------------------------------------------------------------
 
         private void LoadCurrentGuestDetails()
@@ -242,9 +259,13 @@ namespace HomestayDesktopApp
             TxtReviewSex.Text = rec.Sex?.Value ?? "";
             TxtReviewDob.Text = rec.DateOfBirth?.Value ?? "";
             TxtReviewPassportNumber.Text = rec.PassportNumber?.Value ?? "";
+            TxtReviewPassportExpiry.Text = rec.PassportExpiryDate?.Value ?? "";
             TxtReviewNationality.Text = rec.Nationality?.Value ?? "";
             TxtReviewVisaNumber.Text = rec.VisaNumber?.Value ?? "";
             TxtReviewVisaType.Text = rec.VisaType?.Value ?? "";
+            TxtReviewVisaIssueDate.Text = rec.VisaIssueDate?.Value ?? "";
+            TxtReviewVisaExpiryDate.Text = rec.VisaExpiryDate?.Value ?? "";
+            TxtReviewVisaPlaceOfIssue.Text = rec.VisaPlaceOfIssue?.Value ?? "";
             TxtReviewArrivalDate.Text = rec.ArrivalDateIndia?.Value ?? "";
             TxtReviewArrivalPort.Text = rec.ArrivalPortIndia?.Value ?? "";
             TxtReviewArrivedFrom.Text = rec.ArrivedFrom?.Value ?? "";
@@ -254,74 +275,78 @@ namespace HomestayDesktopApp
             TxtReviewEmail.Text = rec.ContactEmail?.Value ?? "";
             TxtReviewPhone.Text = rec.ContactPhone?.Value ?? "";
 
-            _ = UpdateDocumentImagePreviewAsync();
+            UpdateDocumentImagePreview();
         }
 
-        /// <summary>
-        /// Updates the preview image in the left inspection pane according to the selected tab.
-        /// Authenticates directly with the Dell server using pre-shared Bearer token.
-        /// Constrains the image to the visible viewport by default (100% fit).
-        /// Falls back to passport_bio if a standalone guest_photo was not uploaded.
-        /// </summary>
-        private async Task UpdateDocumentImagePreviewAsync()
+        private void UpdateDocumentImagePreview()
         {
             if (_selectedSubmission == null || _selectedSubmission.Guests.Count == 0) return;
 
-            string targetDocType = "passport_bio";
+            string serverBase = "https://api.theasymptotebrief.com/api/v1/jobs/" + _selectedSubmission.Id + "/image/";
+            string targetUrl = serverBase + "passport_bio";
 
             if (TabPassport.IsChecked == true)
             {
-                targetDocType = "passport_bio";
+                targetUrl = serverBase + "passport_bio";
+            }
+            else if (TabVisaDoc.IsChecked == true)
+            {
+                targetUrl = serverBase + "visa_document";
             }
             else if (TabVisa.IsChecked == true)
             {
-                targetDocType = "visa_page";
+                targetUrl = serverBase + "visa_stamp";
             }
             else if (TabStamp.IsChecked == true)
             {
-                targetDocType = "entry_stamp";
+                targetUrl = serverBase + "entry_stamp";
             }
             else if (TabWelcome.IsChecked == true)
             {
-                targetDocType = "welcome_form";
+                targetUrl = serverBase + "welcome_form";
             }
             else if (TabPhoto.IsChecked == true)
             {
-                targetDocType = "guest_photo";
+                targetUrl = serverBase + "guest_photo";
             }
 
-            // Reset zoom scale so the whole image fits entirely inside the frame
             ResetImageZoom();
 
             try
             {
-                // Fetch authenticated image bytes from PassportApiClient
-                byte[]? imageBytes = await _apiClient.GetDocumentImageBytesAsync(_selectedSubmission.Id, targetDocType);
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = new Uri(targetUrl, UriKind.Absolute);
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
 
-                // If loading guest_photo failed or was not uploaded, fall back to passport_bio
-                if (imageBytes == null && targetDocType == "guest_photo")
+                bitmap.DownloadFailed += (s, e) =>
                 {
-                    imageBytes = await _apiClient.GetDocumentImageBytesAsync(_selectedSubmission.Id, "passport_bio");
-                }
-
-                if (imageBytes != null && imageBytes.Length > 0)
-                {
-                    using (var ms = new MemoryStream(imageBytes))
+                    if (TabVisaDoc.IsChecked == true || TabVisa.IsChecked == true)
                     {
-                        var bitmap = new BitmapImage();
-                        bitmap.BeginInit();
-                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                        bitmap.StreamSource = ms;
-                        bitmap.EndInit();
-                        bitmap.Freeze(); // Make cross-thread accessible
-
-                        ImgDocumentPreview.Source = bitmap;
+                        var fallbackBitmap = new BitmapImage();
+                        fallbackBitmap.BeginInit();
+                        fallbackBitmap.UriSource = new Uri(serverBase + "visa_page", UriKind.Absolute);
+                        fallbackBitmap.CacheOption = BitmapCacheOption.OnLoad;
+                        fallbackBitmap.EndInit();
+                        ImgDocumentPreview.Source = fallbackBitmap;
                     }
-                }
-                else
-                {
-                    ImgDocumentPreview.Source = null;
-                }
+                    else if (TabPhoto.IsChecked == true)
+                    {
+                        var fallbackBitmap = new BitmapImage();
+                        fallbackBitmap.BeginInit();
+                        fallbackBitmap.UriSource = new Uri(serverBase + "passport_bio", UriKind.Absolute);
+                        fallbackBitmap.CacheOption = BitmapCacheOption.OnLoad;
+                        fallbackBitmap.EndInit();
+                        ImgDocumentPreview.Source = fallbackBitmap;
+                    }
+                    else
+                    {
+                        ImgDocumentPreview.Source = null;
+                    }
+                };
+
+                bitmap.EndInit();
+                ImgDocumentPreview.Source = bitmap;
             }
             catch
             {
@@ -329,22 +354,12 @@ namespace HomestayDesktopApp
             }
         }
 
-        // --------------------------------------------------------------------------
-        // Zoom and Image Pan Controls
-        // --------------------------------------------------------------------------
-
-        /// <summary>
-        /// Resets the scale transform to 1.0 (fitting the entire document inside the visible viewport).
-        /// </summary>
         private void ResetImageZoom()
         {
             _currentZoomScale = 1.0;
             ApplyZoom();
         }
 
-        /// <summary>
-        /// Applies the current zoom scale transform and updates the status indicator.
-        /// </summary>
         private void ApplyZoom()
         {
             if (ImageScaleTransform != null)
@@ -384,7 +399,6 @@ namespace HomestayDesktopApp
 
         private void ImgScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            // Zoom in or out with Ctrl + MouseWheel
             if (Keyboard.Modifiers == ModifierKeys.Control)
             {
                 if (e.Delta > 0 && _currentZoomScale < 4.0)
@@ -402,6 +416,9 @@ namespace HomestayDesktopApp
             }
         }
 
+        /// <summary>
+        /// Saves operator text edits into memory.
+        /// </summary>
         private void SaveCurrentGuestEdits()
         {
             if (_selectedSubmission == null || _selectedSubmission.Guests.Count == 0) return;
@@ -412,9 +429,13 @@ namespace HomestayDesktopApp
             rec.Sex.Value = TxtReviewSex.Text.Trim();
             rec.DateOfBirth.Value = TxtReviewDob.Text.Trim();
             rec.PassportNumber.Value = TxtReviewPassportNumber.Text.Trim();
+            rec.PassportExpiryDate.Value = TxtReviewPassportExpiry.Text.Trim();
             rec.Nationality.Value = TxtReviewNationality.Text.Trim();
             rec.VisaNumber.Value = TxtReviewVisaNumber.Text.Trim();
             rec.VisaType.Value = TxtReviewVisaType.Text.Trim();
+            rec.VisaIssueDate.Value = TxtReviewVisaIssueDate.Text.Trim();
+            rec.VisaExpiryDate.Value = TxtReviewVisaExpiryDate.Text.Trim();
+            rec.VisaPlaceOfIssue.Value = TxtReviewVisaPlaceOfIssue.Text.Trim();
             rec.ArrivalDateIndia.Value = TxtReviewArrivalDate.Text.Trim();
             rec.ArrivalPortIndia.Value = TxtReviewArrivalPort.Text.Trim();
             rec.ArrivedFrom.Value = TxtReviewArrivedFrom.Text.Trim();
@@ -423,6 +444,12 @@ namespace HomestayDesktopApp
             rec.PermanentAddress.Value = TxtReviewAddress.Text.Trim();
             rec.ContactEmail.Value = TxtReviewEmail.Text.Trim();
             rec.ContactPhone.Value = TxtReviewPhone.Text.Trim();
+        }
+
+        private void BtnSaveEdits_Click(object sender, RoutedEventArgs e)
+        {
+            SaveCurrentGuestEdits();
+            MessageBox.Show("Operator edits saved into memory and will be used during Form-C filing.", "Edits Saved", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void BtnPrevGuest_Click(object sender, RoutedEventArgs e)
@@ -455,7 +482,7 @@ namespace HomestayDesktopApp
 
         private void DocTab_Checked(object sender, RoutedEventArgs e)
         {
-            _ = UpdateDocumentImagePreviewAsync();
+            UpdateDocumentImagePreview();
         }
 
         private void BtnLaunchPortal_Click(object sender, RoutedEventArgs e)
@@ -507,7 +534,7 @@ namespace HomestayDesktopApp
 
             if (string.IsNullOrWhiteSpace(portalUser) || string.IsNullOrWhiteSpace(portalPass))
             {
-                MessageBox.Show("No saved Form-C credentials found. Please configure them once via Tile 3 (Portal Credentials).", "Credentials Needed", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("No saved Form-C credentials found. Configure them via Portal Credentials on Dashboard.", "Credentials Needed", MessageBoxButton.OK, MessageBoxImage.Information);
                 TxtModalUserId.Text = "";
                 TxtModalPassword.Password = "";
                 ModalCredentials.Visibility = Visibility.Visible;
@@ -516,14 +543,7 @@ namespace HomestayDesktopApp
 
             (bool success, string message) = await _domInjector.InjectLoginCredentialsAsync(portalUser, portalPass);
 
-            if (success)
-            {
-                MessageBox.Show(message, "Autofill Success", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            else
-            {
-                MessageBox.Show(message, "Autofill Notice", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
+            MessageBox.Show(message, success ? "Autofill Success" : "Autofill Notice", MessageBoxButton.OK, success ? MessageBoxImage.Information : MessageBoxImage.Warning);
         }
 
         private async void BtnAutofillFields_Click(object sender, RoutedEventArgs e)
@@ -543,7 +563,12 @@ namespace HomestayDesktopApp
             var guest = _selectedSubmission.Guests[_currentGuestIndex];
             (bool success, string message) = await _domInjector.InjectGuestDetailsAsync(guest.ExtractedRecord);
 
-            MessageBox.Show(message, success ? "Autofill Complete" : "Autofill Status", MessageBoxButton.OK, success ? MessageBoxImage.Information : MessageBoxImage.Warning);
+            MessageBox.Show(
+                message,
+                success ? "Autofill Complete" : "Autofill Status",
+                MessageBoxButton.OK,
+                success ? MessageBoxImage.Information : MessageBoxImage.Warning
+            );
         }
 
         private void BtnReloadWeb_Click(object sender, RoutedEventArgs e)

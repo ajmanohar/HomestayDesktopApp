@@ -12,13 +12,11 @@
 
     <Grid>
         <!-- ================================================================= -->
-        <!-- VIEW 1: HOME DASHBOARD / LANDING SCREEN (TWO PRIMARY TILES)       -->
+        <!-- VIEW 1: HOME DASHBOARD / LANDING SCREEN (ACTION TILES)            -->
         <!-- ================================================================= -->
         <Grid x:Name="ViewDashboard" Visibility="Visible" Background="#F8FAFC">
             <Grid.RowDefinitions>
-                <!-- Header Bar -->
                 <RowDefinition Height="Auto"/>
-                <!-- Central Action Tiles -->
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
@@ -39,12 +37,12 @@
                 </Grid>
             </Border>
 
-            <!-- Two Action Tiles Centered on Dashboard -->
-            <Grid Grid.Row="1" Margin="40" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <!-- Action Tiles Grid -->
+            <Grid Grid.Row="1" Margin="30" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="420"/>
-                    <ColumnDefinition Width="40"/>
-                    <ColumnDefinition Width="420"/>
+                    <ColumnDefinition Width="380"/>
+                    <ColumnDefinition Width="32"/>
+                    <ColumnDefinition Width="380"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- TILE 1 (PRIMARY): REVIEW & RETRIEVE SUBMISSIONS -->
@@ -54,13 +52,13 @@
                         <DropShadowEffect BlurRadius="20" ShadowDepth="4" Direction="270" Color="#94A3B8" Opacity="0.15"/>
                     </Border.Effect>
                     <StackPanel VerticalAlignment="Center">
-                        <Border Background="#EEF2FF" Width="64" Height="64" CornerRadius="32" HorizontalAlignment="Left" Margin="0,0,0,20">
-                            <TextBlock Text="📂" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border Background="#EEF2FF" Width="56" Height="56" CornerRadius="28" HorizontalAlignment="Left" Margin="0,0,0,16">
+                            <TextBlock Text="📂" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="Review &amp; Retrieve Submissions" FontSize="20" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
-                        <TextBlock Text="Fetch guest batches submitted via the mobile app. Inspect high-res documents, verify extracted arrival details, and launch automated Form-C portal filing."
-                                   FontSize="13" Foreground="#64748B" TextWrapping="Wrap" LineHeight="20" Margin="0,0,0,24"/>
-                        <Button Content="Open Submissions Table →" Height="42" Background="#4F46E5" Foreground="#FFFFFF" FontWeight="Bold"
+                        <TextBlock Text="Review &amp; Retrieve Submissions" FontSize="18" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
+                        <TextBlock Text="View tabular submissions sent from mobile. Inspect high-res documents, portrait photos, cycle through guests in that submission, and launch filing."
+                                   FontSize="12" Foreground="#64748B" TextWrapping="Wrap" LineHeight="18" Margin="0,0,0,24"/>
+                        <Button Content="Open Submissions Table →" Height="40" Background="#4F46E5" Foreground="#FFFFFF" FontWeight="Bold"
                                 BorderThickness="0" Click="TileRetrieveSubmissions_Click"/>
                     </StackPanel>
                 </Border>
@@ -72,13 +70,13 @@
                         <DropShadowEffect BlurRadius="20" ShadowDepth="4" Direction="270" Color="#94A3B8" Opacity="0.15"/>
                     </Border.Effect>
                     <StackPanel VerticalAlignment="Center">
-                        <Border Background="#FEF3C7" Width="64" Height="64" CornerRadius="32" HorizontalAlignment="Left" Margin="0,0,0,20">
-                            <TextBlock Text="🔐" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border Background="#FEF3C7" Width="56" Height="56" CornerRadius="28" HorizontalAlignment="Left" Margin="0,0,0,16">
+                            <TextBlock Text="🔐" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="Portal Credentials" FontSize="20" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
-                        <TextBlock Text="Store your Form-C user ID and password encrypted via Windows DPAPI. Enter once and forget; the portal runner uses them seamlessly without prompting."
-                                   FontSize="13" Foreground="#64748B" TextWrapping="Wrap" LineHeight="20" Margin="0,0,0,24"/>
-                        <Button Content="Manage Saved Credentials ⚙" Height="42" Background="#D97706" Foreground="#FFFFFF" FontWeight="Bold"
+                        <TextBlock Text="Portal Credentials" FontSize="18" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
+                        <TextBlock Text="Store your Form-C user ID and password encrypted via Windows DPAPI. Enter once and forget; autofill uses them seamlessly without prompting."
+                                   FontSize="12" Foreground="#64748B" TextWrapping="Wrap" LineHeight="18" Margin="0,0,0,24"/>
+                        <Button Content="Manage Saved Credentials ⚙" Height="40" Background="#D97706" Foreground="#FFFFFF" FontWeight="Bold"
                                 BorderThickness="0" Click="TileCredentials_Click"/>
                     </StackPanel>
                 </Border>
@@ -171,7 +169,7 @@
                     <Button Grid.Column="0" Content="⬅ Back to Submissions" Height="34" Padding="12,0" FontWeight="SemiBold"
                             Background="#F1F5F9" Foreground="#334155" BorderThickness="0" Click="BtnBackToSubmissions_Click"/>
 
-                    <!-- Guest Carousel Navigation (Strictly Within Selected Submission) -->
+                    <!-- Guest Carousel Navigation -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Button x:Name="BtnPrevGuest" Content="◀ Prev Guest" Height="32" Padding="12,0" Background="#F1F5F9" Foreground="#334155"
                                 FontWeight="SemiBold" BorderThickness="0" Click="BtnPrevGuest_Click"/>
@@ -200,19 +198,18 @@
                 <Border Grid.Column="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,0,1,0" Padding="16">
                     <Grid>
                         <Grid.RowDefinitions>
-                            <!-- Tab Bar -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Zoom Toolbar -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Zoomable / Pannable Image Viewport -->
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Document & Photo Type Selector Tabs -->
+                        <!-- Document & Photo Type Selector Tabs (Task 42: Dual Visa Support) -->
                         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
                             <RadioButton x:Name="TabPassport" Content="Passport Bio" IsChecked="True" Style="{StaticResource {x:Type ToggleButton}}"
                                          Padding="10,6" Margin="0,0,4,0" Checked="DocTab_Checked"/>
-                            <RadioButton x:Name="TabVisa" Content="Visa / OCI" Style="{StaticResource {x:Type ToggleButton}}"
+                            <RadioButton x:Name="TabVisaDoc" Content="e-Visa Doc" Style="{StaticResource {x:Type ToggleButton}}"
+                                         Padding="10,6" Margin="0,0,4,0" Checked="DocTab_Checked"/>
+                            <RadioButton x:Name="TabVisa" Content="Visa Stamp" Style="{StaticResource {x:Type ToggleButton}}"
                                          Padding="10,6" Margin="0,0,4,0" Checked="DocTab_Checked"/>
                             <RadioButton x:Name="TabStamp" Content="Entry Stamp" Style="{StaticResource {x:Type ToggleButton}}"
                                          Padding="10,6" Margin="0,0,4,0" Checked="DocTab_Checked"/>
@@ -241,16 +238,14 @@
                             </Grid>
                         </Border>
 
-                        <!-- Scrollable / Zoomable Document Viewer Bound to Visible Container Dimensions -->
+                        <!-- Scrollable / Zoomable Document Viewer -->
                         <Border x:Name="ViewerContainer" Grid.Row="2" Background="#0F172A" CornerRadius="6" ClipToBounds="True">
                             <ScrollViewer x:Name="ImgScrollViewer" 
                                           HorizontalScrollBarVisibility="Auto" 
                                           VerticalScrollBarVisibility="Auto"
                                           Focusable="False"
                                           PreviewMouseWheel="ImgScrollViewer_PreviewMouseWheel">
-                                <!-- Grid centered within the viewport -->
                                 <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <!-- Image constrained strictly to parent container dimensions at 1.0x scale -->
                                     <Image x:Name="ImgDocumentPreview" 
                                            Stretch="Uniform"
                                            MaxWidth="{Binding ActualWidth, ElementName=ViewerContainer}"
@@ -268,12 +263,20 @@
 
                 <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="#E2E8F0"/>
 
-                <!-- Right Column: Form-C Field Editor -->
+                <!-- Right Column: Form-C Field Editor with Explicit Date Format Labels (Task 48) -->
                 <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="20">
                     <StackPanel>
-                        <TextBlock Text="Form-C Arrival Bio-Data (Rule 14)" FontSize="16" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,12"/>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Form-C Verified Details (Rule 14)" FontSize="16" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Content="💾 Save Overrides" Height="28" Padding="12,0" Background="#EEF2FF" Foreground="#4F46E5"
+                                    FontWeight="Bold" BorderThickness="0" Click="BtnSaveEdits_Click"/>
+                        </Grid>
 
-                        <TextBlock Text="Surname:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
+                        <TextBlock Text="Surname (Family Name):" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
                         <TextBox x:Name="TxtReviewSurname" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
 
                         <TextBlock Text="Given Names:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
@@ -286,11 +289,11 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Sex (M/F):" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
+                                <TextBlock Text="Sex (M / F / X):" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
                                 <TextBox x:Name="TxtReviewSex" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="Date of Birth:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
+                                <TextBlock Text="Date of Birth (DD-MM-YYYY):" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
                                 <TextBox x:Name="TxtReviewDob" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
                             </StackPanel>
                         </Grid>
@@ -306,10 +309,13 @@
                                 <TextBox x:Name="TxtReviewPassportNumber" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="Nationality:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
-                                <TextBox x:Name="TxtReviewNationality" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
+                                <TextBlock Text="Passport Expiry Date (DD-MM-YYYY):" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
+                                <TextBox x:Name="TxtReviewPassportExpiry" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
                             </StackPanel>
                         </Grid>
+
+                        <TextBlock Text="Nationality:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
+                        <TextBox x:Name="TxtReviewNationality" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
 
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
@@ -334,7 +340,26 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Arrival Date (India):" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
+                                <TextBlock Text="Visa Issue Date (DD-MM-YYYY):" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
+                                <TextBox x:Name="TxtReviewVisaIssueDate" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Visa Expiry Date (DD-MM-YYYY):" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
+                                <TextBox x:Name="TxtReviewVisaExpiryDate" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="Visa Place of Issue / Mission:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
+                        <TextBox x:Name="TxtReviewVisaPlaceOfIssue" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Arrival Date in India (DD-MM-YYYY):" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
                                 <TextBox x:Name="TxtReviewArrivalDate" Height="28" Margin="0,2,0,0" VerticalContentAlignment="Center"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
@@ -343,16 +368,16 @@
                             </StackPanel>
                         </Grid>
 
-                        <TextBlock Text="Arrived From:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
+                        <TextBlock Text="Arrived From (Previous City / Port):" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
                         <TextBox x:Name="TxtReviewArrivedFrom" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
 
-                        <TextBlock Text="Proceeding To:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
+                        <TextBlock Text="Proceeding To (Next Destination):" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
                         <TextBox x:Name="TxtReviewProceedingTo" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
 
-                        <TextBlock Text="Purpose of Visit:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
+                        <TextBlock Text="Purpose of Visit &amp; Profession:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
                         <TextBox x:Name="TxtReviewPurposeOfVisit" Height="28" Margin="0,2,0,8" VerticalContentAlignment="Center"/>
 
-                        <TextBlock Text="Permanent Address:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
+                        <TextBlock Text="Row 2: Permanent Residential Address:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
                         <TextBox x:Name="TxtReviewAddress" Height="48" TextWrapping="Wrap" Margin="0,2,0,8" VerticalContentAlignment="Top"/>
 
                         <TextBlock Text="Contact Email:" FontSize="12" FontWeight="SemiBold" Foreground="#475569"/>
