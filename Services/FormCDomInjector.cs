@@ -5,9 +5,9 @@
 // Injects sanitized guest data into the official Indian Bureau of Immigration
 // Form-C web portal (https://indianfrro.gov.in/frro/FormC/).
 //
-// Critical Anti-Hallucination & Architecture Principles:
-// - Accepts Microsoft.Web.WebView2.Wpf.WebView2 in the constructor.
-// - Exposes InjectLoginCredentialsAsync and InjectGuestDetailsAsync returning Task<(bool Success, string Message)>.
+// Key Features:
+// - Date format normalizer: converts any valid date (YYYY-MM-DD, DD-MM-YYYY)
+//   to portal format DD/MM/YYYY before injection.
 // - Sanitizes all extracted strings (strips dummy tokens like "Parthasarthy Nagar").
 // - If any field value is null or empty, leaves the input blank ("").
 // - Dispatches input, change, and blur DOM events to trigger validation listeners.
@@ -52,7 +52,7 @@ namespace HomestayDesktopApp.Services
         }
 
         // --------------------------------------------------------------------------
-        // Sanitization & Anti-Hallucination Guardrails
+        // Sanitization, Date Normalization & Anti-Hallucination Guardrails
         // --------------------------------------------------------------------------
 
         /// <summary>
@@ -88,8 +88,36 @@ namespace HomestayDesktopApp.Services
                 return string.Empty;
             }
 
-            // Safely encode for JavaScript insertion
             return JavaScriptEncoder.Default.Encode(trimmed);
+        }
+
+        /// <summary>
+        /// Normalizes date strings (YYYY-MM-DD or DD-MM-YYYY) into the official
+        /// Form-C portal format DD/MM/YYYY.
+        /// </summary>
+        /// <param name="dateCandidate">Raw or operator-edited date string.</param>
+        /// <returns>Standardized DD/MM/YYYY string, or sanitized original if parsing fails.</returns>
+        private static string NormalizeDateForPortal(string? dateCandidate)
+        {
+            string clean = CleanValue(dateCandidate);
+            if (string.IsNullOrWhiteSpace(clean))
+            {
+                return string.Empty;
+            }
+
+            // Check if already in DD/MM/YYYY format
+            if (System.Text.RegularExpressions.Regex.IsMatch(clean, @"^\d{2}/\d{2}/\d{4}$"))
+            {
+                return clean;
+            }
+
+            // Attempt DateTime parse across standard ISO and common formats
+            if (DateTime.TryParse(clean, out DateTime parsed))
+            {
+                return parsed.ToString("dd/MM/yyyy");
+            }
+
+            return clean;
         }
 
         // --------------------------------------------------------------------------
@@ -126,7 +154,6 @@ namespace HomestayDesktopApp.Services
             sb.AppendLine($"    const uFound = setVal('input[name=\"u_name\"], input[name=\"username\"], #u_name, input[name=\"u_id\"], #u_id, #txt_uid', '{cleanUser}');");
             sb.AppendLine($"    const pFound = setVal('input[name=\"pass\"], input[name=\"password\"], #pass, input[name=\"upass\"], #upass, #txt_pwd', '{cleanPass}');");
             sb.AppendLine();
-            sb.AppendLine("    // Focus visual CAPTCHA input for rapid manual operator completion");
             sb.AppendLine("    const captcha = document.querySelector('input[name=\"cap\"], input[name=\"captcha\"], #cap, input[name=\"txt_cap\"], #txt_cap');");
             sb.AppendLine("    if (captcha) {");
             sb.AppendLine("        captcha.focus();");
@@ -144,7 +171,7 @@ namespace HomestayDesktopApp.Services
 
         /// <summary>
         /// Synthesizes the JavaScript snippet to populate guest bio-data and Form-C fields.
-        /// Operates strictly on authentic extracted data, outputting blank inputs for missing fields.
+        /// Applies DD/MM/YYYY date formatting to all date fields before DOM assignment.
         /// </summary>
         /// <param name="record">The verified guest record containing extracted bio-data.</param>
         /// <returns>JavaScript string for WebView2 execution.</returns>
@@ -155,22 +182,22 @@ namespace HomestayDesktopApp.Services
                 return "JSON.stringify({ success: false, message: 'No guest record supplied.' });";
             }
 
-            // Extract and sanitize individual field values
+            // Extract, clean, and format values
             string surname = CleanValue(record.Surname?.Value);
             string givenNames = CleanValue(record.GivenNames?.Value);
             string sex = CleanValue(record.Sex?.Value);
-            string dob = CleanValue(record.DateOfBirth?.Value);
+            string dob = NormalizeDateForPortal(record.DateOfBirth?.Value);
             string nationality = CleanValue(record.Nationality?.Value);
             string passportNum = CleanValue(record.PassportNumber?.Value);
-            string passportExp = CleanValue(record.PassportExpiryDate?.Value);
+            string passportExp = NormalizeDateForPortal(record.PassportExpiryDate?.Value);
 
             string visaNum = CleanValue(record.VisaNumber?.Value);
             string visaType = CleanValue(record.VisaType?.Value);
-            string visaIssueDate = CleanValue(record.VisaIssueDate?.Value);
-            string visaExpDate = CleanValue(record.VisaExpiryDate?.Value);
+            string visaIssueDate = NormalizeDateForPortal(record.VisaIssueDate?.Value);
+            string visaExpDate = NormalizeDateForPortal(record.VisaExpiryDate?.Value);
             string visaPlace = CleanValue(record.VisaPlaceOfIssue?.Value);
 
-            string arrivalDate = CleanValue(record.ArrivalDateIndia?.Value);
+            string arrivalDate = NormalizeDateForPortal(record.ArrivalDateIndia?.Value);
             string arrivalPort = CleanValue(record.ArrivalPortIndia?.Value);
 
             string address = CleanValue(record.PermanentAddress?.Value);
@@ -186,7 +213,7 @@ namespace HomestayDesktopApp.Services
 
             var sb = new StringBuilder();
             sb.AppendLine("(function() {");
-            sb.AppendLine("    console.log('[FormCInjector] Populating Form-C guest fields...');");
+            sb.AppendLine("    console.log('[FormCInjector] Populating Form-C guest fields with normalized dates...');");
             sb.AppendLine("    let filledCount = 0;");
             sb.AppendLine();
             sb.AppendLine("    function assignField(names, val) {");
@@ -275,7 +302,6 @@ namespace HomestayDesktopApp.Services
                     return (false, "Autofill script executed, but login elements were not found on the active page.");
                 }
 
-                // Parse returned JSON from the execution script
                 using var doc = JsonDocument.Parse(rawResult.Trim('"').Replace("\\\"", "\"").Replace("\\\\", "\\"));
                 var root = doc.RootElement;
                 bool success = root.GetProperty("success").GetBoolean();
@@ -324,7 +350,6 @@ namespace HomestayDesktopApp.Services
                     return (false, "Form fill script executed, but target input fields were not detected.");
                 }
 
-                // Parse returned JSON from the execution script
                 using var doc = JsonDocument.Parse(rawResult.Trim('"').Replace("\\\"", "\"").Replace("\\\\", "\\"));
                 var root = doc.RootElement;
                 bool success = root.GetProperty("success").GetBoolean();
