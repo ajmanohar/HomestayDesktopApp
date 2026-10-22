@@ -1,9 +1,9 @@
 // ==============================================================================
 // PassportApiClient.cs - HomestayDesktopApp (.NET 8 WPF)
 // ==============================================================================
-// Handles asynchronous querying and polling against the live Dell Micro edge server
-// over Cloudflare Tunnel with Bearer Token Authorization.
-// Dedicated strictly to reading server-ingested submissions and job results.
+// Handles asynchronous querying, polling, and authenticated binary image streaming
+// against the live Dell Micro edge server over Cloudflare Tunnel.
+// Secured with pre-shared Bearer token authentication matching PassportReadAPI.
 // Production Domain: https://api.theasymptotebrief.com/api/v1/
 // ==============================================================================
 
@@ -20,8 +20,8 @@ namespace HomestayDesktopApp.Services
 {
     /// <summary>
     /// Communicates with the Dell Micro edge server (PassportReadAPI).
-    /// Provides methods to synchronize recent submissions and poll job details
-    /// using pre-shared Bearer token authentication.
+    /// Provides methods to synchronize recent submissions, poll job details,
+    /// and fetch protected document images using pre-shared Bearer token authentication.
     /// </summary>
     public class PassportApiClient
     {
@@ -145,6 +145,44 @@ namespace HomestayDesktopApp.Services
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Fetches binary image bytes for a protected document artifact from the Dell server.
+        /// Transmits the Authorization Bearer header to avoid 401 Unauthorized responses.
+        /// Maps to GET /api/v1/jobs/{job_id}/image/{doc_type}.
+        /// </summary>
+        /// <param name="jobId">Job UUID identifier.</param>
+        /// <param name="docType">Document key ('passport_bio', 'visa_page', 'entry_stamp', 'welcome_form', or 'guest_photo').</param>
+        /// <param name="cancellationToken">Optional cancellation token.</param>
+        /// <returns>Byte array representing the raw image data, or null if not found/error.</returns>
+        public async Task<byte[]?> GetDocumentImageBytesAsync(
+            string jobId,
+            string docType,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(jobId) || string.IsNullOrWhiteSpace(docType))
+            {
+                return null;
+            }
+
+            try
+            {
+                // Relative URL resolving to jobs/{jobId}/image/{docType}
+                string relativeUrl = $"jobs/{jobId}/image/{docType}";
+                var response = await _httpClient.GetAsync(relativeUrl, cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return null;
+                }
+
+                return await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }
