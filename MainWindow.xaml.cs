@@ -1,17 +1,16 @@
 ﻿// ==============================================================================
 // MainWindow.xaml.cs - HomestayDesktopApp (.NET 8 WPF)
 // ==============================================================================
-// Orchestrates the desktop workflow strictly for:
-// 1. Retrieving live mobile-captured submissions from the Dell Edge Server.
-// 2. Dual-pane inspection of documents (with auto-fit and zoom controls).
-// 3. Automated Form-C portal filing with DPAPI-encrypted credential storage.
-// 4. Task 42 & 48: Support for Dual Visa tabs (e-Visa Doc vs. Visa Stamp),
-//    explicit (DD-MM-YYYY) format fields, and saving manual operator overrides.
-// Production Edge Server: https://api.theasymptotebrief.com via Cloudflare Tunnel
+// Orchestrates desktop Form-C operations:
+// 1. Retrieving live mobile-captured submissions from Dell Edge Server with cache-busting.
+// 2. Dual-pane inspection of documents via Bearer-authenticated MemoryStream image loading.
+// 3. User-facing date conversion (DD-MM-YYYY display vs YYYY-MM-DD ISO storage).
+// 4. Automated Form-C portal filing with DPAPI-encrypted credentials and iframe traversal.
 // ==============================================================================
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,7 +32,7 @@ namespace HomestayDesktopApp
         // State & Backing Services
         // --------------------------------------------------------------------------
 
-        // API client configured for communication with the Dell Micro edge server
+        // API client targeting the Dell Micro edge server over Cloudflare Tunnel
         private readonly PassportApiClient _apiClient;
 
         // Recursive DOM automation engine for WebView2 Form-C portal interaction
@@ -58,7 +57,11 @@ namespace HomestayDesktopApp
         public MainWindow()
         {
             InitializeComponent();
+
+            // Initialize HTTP client targeting the Dell Micro edge server endpoint
             _apiClient = new PassportApiClient();
+
+            // Ensure Microsoft WebView2 runtime is initialized when window loads
             Loaded += MainWindow_Loaded;
         }
 
@@ -81,6 +84,66 @@ namespace HomestayDesktopApp
                     MessageBoxImage.Error
                 );
             }
+        }
+
+        // --------------------------------------------------------------------------
+        // Date Formatting Helpers (DD-MM-YYYY Display vs YYYY-MM-DD ISO Storage)
+        // --------------------------------------------------------------------------
+
+        /// <summary>
+        /// Converts an ISO date string (YYYY-MM-DD) into user-facing display format (DD-MM-YYYY).
+        /// </summary>
+        /// <param name="rawIsoDate">Raw ISO date string from database or server.</param>
+        /// <returns>Formatted DD-MM-YYYY date string, or empty if null/empty.</returns>
+        private static string FormatIsoToDisplay(string? rawIsoDate)
+        {
+            if (string.IsNullOrWhiteSpace(rawIsoDate)) return string.Empty;
+            string clean = rawIsoDate.Trim();
+
+            // If already in DD-MM-YYYY format, return directly
+            if (DateTime.TryParseExact(clean, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+            {
+                return clean;
+            }
+
+            // Parse standard ISO date and convert to DD-MM-YYYY
+            if (DateTime.TryParse(clean, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dt))
+            {
+                return dt.ToString("dd-MM-yyyy");
+            }
+
+            return clean;
+        }
+
+        /// <summary>
+        /// Converts a user-entered display date string (DD-MM-YYYY) back into ISO format (YYYY-MM-DD).
+        /// </summary>
+        /// <param name="displayDate">Display date entered by operator.</param>
+        /// <returns>Standard ISO YYYY-MM-DD string.</returns>
+        private static string FormatDisplayToIso(string? displayDate)
+        {
+            if (string.IsNullOrWhiteSpace(displayDate)) return string.Empty;
+            string clean = displayDate.Trim();
+
+            // If already in YYYY-MM-DD format, return directly
+            if (DateTime.TryParseExact(clean, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+            {
+                return clean;
+            }
+
+            // Parse DD-MM-YYYY or DD/MM/YYYY and format to ISO
+            if (DateTime.TryParseExact(clean, new[] { "dd-MM-yyyy", "dd/MM/yyyy" }, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dt))
+            {
+                return dt.ToString("yyyy-MM-dd");
+            }
+
+            // Fallback generic parse
+            if (DateTime.TryParse(clean, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime fallbackDt))
+            {
+                return fallbackDt.ToString("yyyy-MM-dd");
+            }
+
+            return clean;
         }
 
         // --------------------------------------------------------------------------
@@ -192,7 +255,7 @@ namespace HomestayDesktopApp
                                 GuestIndex = 0,
                                 GuestName = leadGuestName,
                                 PassportImageUrl = serverBase + "passport_bio",
-                                VisaImageUrl = serverBase + "visa_page",
+                                VisaImageUrl = serverBase + "visa_document",
                                 StampImageUrl = serverBase + "entry_stamp",
                                 WelcomeFormImageUrl = serverBase + "welcome_form",
                                 ExtractedRecord = job.Result ?? new GuestFormCRecord()
@@ -202,7 +265,10 @@ namespace HomestayDesktopApp
                     _submissionsList.Add(summary);
                 }
 
+                // Explicitly clear ItemsSource before re-binding to force visual tree refresh
+                DgSubmissions.ItemsSource = null;
                 DgSubmissions.ItemsSource = _submissionsList;
+                DgSubmissions.Items.Refresh();
             }
             catch (Exception ex)
             {
@@ -242,6 +308,9 @@ namespace HomestayDesktopApp
         // Screen 3: Multi-Guest Carousel & Review
         // --------------------------------------------------------------------------
 
+        /// <summary>
+        /// Populates Form-C input controls with formatted display dates.
+        /// </summary>
         private void LoadCurrentGuestDetails()
         {
             if (_selectedSubmission == null || _selectedSubmission.Guests.Count == 0) return;
@@ -254,19 +323,24 @@ namespace HomestayDesktopApp
             BtnNextGuest.IsEnabled = _currentGuestIndex < totalGuests - 1;
 
             var rec = guest.ExtractedRecord;
+
             TxtReviewSurname.Text = rec.Surname?.Value ?? "";
             TxtReviewGivenNames.Text = rec.GivenNames?.Value ?? "";
             TxtReviewSex.Text = rec.Sex?.Value ?? "";
-            TxtReviewDob.Text = rec.DateOfBirth?.Value ?? "";
+
+            // Format dates to DD-MM-YYYY for display
+            TxtReviewDob.Text = FormatIsoToDisplay(rec.DateOfBirth?.Value);
             TxtReviewPassportNumber.Text = rec.PassportNumber?.Value ?? "";
-            TxtReviewPassportExpiry.Text = rec.PassportExpiryDate?.Value ?? "";
+            TxtReviewPassportExpiry.Text = FormatIsoToDisplay(rec.PassportExpiryDate?.Value);
             TxtReviewNationality.Text = rec.Nationality?.Value ?? "";
+
             TxtReviewVisaNumber.Text = rec.VisaNumber?.Value ?? "";
             TxtReviewVisaType.Text = rec.VisaType?.Value ?? "";
-            TxtReviewVisaIssueDate.Text = rec.VisaIssueDate?.Value ?? "";
-            TxtReviewVisaExpiryDate.Text = rec.VisaExpiryDate?.Value ?? "";
+            TxtReviewVisaIssueDate.Text = FormatIsoToDisplay(rec.VisaIssueDate?.Value);
+            TxtReviewVisaExpiryDate.Text = FormatIsoToDisplay(rec.VisaExpiryDate?.Value);
             TxtReviewVisaPlaceOfIssue.Text = rec.VisaPlaceOfIssue?.Value ?? "";
-            TxtReviewArrivalDate.Text = rec.ArrivalDateIndia?.Value ?? "";
+
+            TxtReviewArrivalDate.Text = FormatIsoToDisplay(rec.ArrivalDateIndia?.Value);
             TxtReviewArrivalPort.Text = rec.ArrivalPortIndia?.Value ?? "";
             TxtReviewArrivedFrom.Text = rec.ArrivedFrom?.Value ?? "";
             TxtReviewProceedingTo.Text = rec.ProceedingTo?.Value ?? "";
@@ -275,78 +349,61 @@ namespace HomestayDesktopApp
             TxtReviewEmail.Text = rec.ContactEmail?.Value ?? "";
             TxtReviewPhone.Text = rec.ContactPhone?.Value ?? "";
 
-            UpdateDocumentImagePreview();
+            // Trigger authenticated image preview update
+            _ = UpdateDocumentImagePreviewAsync();
         }
 
-        private void UpdateDocumentImagePreview()
+        /// <summary>
+        /// Fetches binary image bytes using Bearer authentication and decodes into BitmapImage.
+        /// StreamSource is safely initialized to prevent WPF premature stream disposal.
+        /// </summary>
+        private async Task UpdateDocumentImagePreviewAsync()
         {
             if (_selectedSubmission == null || _selectedSubmission.Guests.Count == 0) return;
 
-            string serverBase = "https://api.theasymptotebrief.com/api/v1/jobs/" + _selectedSubmission.Id + "/image/";
-            string targetUrl = serverBase + "passport_bio";
-
-            if (TabPassport.IsChecked == true)
-            {
-                targetUrl = serverBase + "passport_bio";
-            }
-            else if (TabVisaDoc.IsChecked == true)
-            {
-                targetUrl = serverBase + "visa_document";
-            }
-            else if (TabVisa.IsChecked == true)
-            {
-                targetUrl = serverBase + "visa_stamp";
-            }
-            else if (TabStamp.IsChecked == true)
-            {
-                targetUrl = serverBase + "entry_stamp";
-            }
-            else if (TabWelcome.IsChecked == true)
-            {
-                targetUrl = serverBase + "welcome_form";
-            }
-            else if (TabPhoto.IsChecked == true)
-            {
-                targetUrl = serverBase + "guest_photo";
-            }
+            string docType = "passport_bio";
+            if (TabPassport.IsChecked == true) docType = "passport_bio";
+            else if (TabVisaDoc.IsChecked == true) docType = "visa_document";
+            else if (TabVisa.IsChecked == true) docType = "visa_stamp";
+            else if (TabStamp.IsChecked == true) docType = "entry_stamp";
+            else if (TabWelcome.IsChecked == true) docType = "welcome_form";
+            else if (TabPhoto.IsChecked == true) docType = "guest_photo";
 
             ResetImageZoom();
 
             try
             {
-                var bitmap = new BitmapImage();
-                bitmap.BeginInit();
-                bitmap.UriSource = new Uri(targetUrl, UriKind.Absolute);
-                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                // Authenticated binary download from Dell edge server via Bearer header
+                byte[]? imageBytes = await _apiClient.GetDocumentImageBytesAsync(_selectedSubmission.Id, docType);
 
-                bitmap.DownloadFailed += (s, e) =>
+                // Fallback for visa document / stamp aliases
+                if (imageBytes == null && (docType == "visa_document" || docType == "visa_stamp"))
                 {
-                    if (TabVisaDoc.IsChecked == true || TabVisa.IsChecked == true)
-                    {
-                        var fallbackBitmap = new BitmapImage();
-                        fallbackBitmap.BeginInit();
-                        fallbackBitmap.UriSource = new Uri(serverBase + "visa_page", UriKind.Absolute);
-                        fallbackBitmap.CacheOption = BitmapCacheOption.OnLoad;
-                        fallbackBitmap.EndInit();
-                        ImgDocumentPreview.Source = fallbackBitmap;
-                    }
-                    else if (TabPhoto.IsChecked == true)
-                    {
-                        var fallbackBitmap = new BitmapImage();
-                        fallbackBitmap.BeginInit();
-                        fallbackBitmap.UriSource = new Uri(serverBase + "passport_bio", UriKind.Absolute);
-                        fallbackBitmap.CacheOption = BitmapCacheOption.OnLoad;
-                        fallbackBitmap.EndInit();
-                        ImgDocumentPreview.Source = fallbackBitmap;
-                    }
-                    else
-                    {
-                        ImgDocumentPreview.Source = null;
-                    }
-                };
+                    imageBytes = await _apiClient.GetDocumentImageBytesAsync(_selectedSubmission.Id, "visa_page");
+                }
+                // Fallback for standalone portrait photo
+                else if (imageBytes == null && docType == "guest_photo")
+                {
+                    imageBytes = await _apiClient.GetDocumentImageBytesAsync(_selectedSubmission.Id, "passport_bio");
+                }
 
-                bitmap.EndInit();
-                ImgDocumentPreview.Source = bitmap;
+                if (imageBytes != null && imageBytes.Length > 0)
+                {
+                    // MemoryStream is preserved in memory for BitmapImage decoding with OnLoad cache option
+                    var ms = new MemoryStream(imageBytes);
+                    var bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.StreamSource = ms;
+                    bitmap.EndInit();
+                    bitmap.Freeze(); // Enables cross-thread and asynchronous rendering safety
+
+                    ImgDocumentPreview.Source = bitmap;
+                }
+                else
+                {
+                    ImgDocumentPreview.Source = null;
+                }
             }
             catch
             {
@@ -417,26 +474,31 @@ namespace HomestayDesktopApp
         }
 
         /// <summary>
-        /// Saves operator text edits into memory.
+        /// Saves operator text edits into memory, converting DD-MM-YYYY back into standard ISO YYYY-MM-DD.
         /// </summary>
         private void SaveCurrentGuestEdits()
         {
             if (_selectedSubmission == null || _selectedSubmission.Guests.Count == 0) return;
 
             var rec = _selectedSubmission.Guests[_currentGuestIndex].ExtractedRecord;
+
             rec.Surname.Value = TxtReviewSurname.Text.Trim();
             rec.GivenNames.Value = TxtReviewGivenNames.Text.Trim();
             rec.Sex.Value = TxtReviewSex.Text.Trim();
-            rec.DateOfBirth.Value = TxtReviewDob.Text.Trim();
+
+            // Convert DD-MM-YYYY back to ISO YYYY-MM-DD
+            rec.DateOfBirth.Value = FormatDisplayToIso(TxtReviewDob.Text);
             rec.PassportNumber.Value = TxtReviewPassportNumber.Text.Trim();
-            rec.PassportExpiryDate.Value = TxtReviewPassportExpiry.Text.Trim();
+            rec.PassportExpiryDate.Value = FormatDisplayToIso(TxtReviewPassportExpiry.Text);
             rec.Nationality.Value = TxtReviewNationality.Text.Trim();
+
             rec.VisaNumber.Value = TxtReviewVisaNumber.Text.Trim();
             rec.VisaType.Value = TxtReviewVisaType.Text.Trim();
-            rec.VisaIssueDate.Value = TxtReviewVisaIssueDate.Text.Trim();
-            rec.VisaExpiryDate.Value = TxtReviewVisaExpiryDate.Text.Trim();
+            rec.VisaIssueDate.Value = FormatDisplayToIso(TxtReviewVisaIssueDate.Text);
+            rec.VisaExpiryDate.Value = FormatDisplayToIso(TxtReviewVisaExpiryDate.Text);
             rec.VisaPlaceOfIssue.Value = TxtReviewVisaPlaceOfIssue.Text.Trim();
-            rec.ArrivalDateIndia.Value = TxtReviewArrivalDate.Text.Trim();
+
+            rec.ArrivalDateIndia.Value = FormatDisplayToIso(TxtReviewArrivalDate.Text);
             rec.ArrivalPortIndia.Value = TxtReviewArrivalPort.Text.Trim();
             rec.ArrivedFrom.Value = TxtReviewArrivedFrom.Text.Trim();
             rec.ProceedingTo.Value = TxtReviewProceedingTo.Text.Trim();
@@ -482,7 +544,7 @@ namespace HomestayDesktopApp
 
         private void DocTab_Checked(object sender, RoutedEventArgs e)
         {
-            UpdateDocumentImagePreview();
+            _ = UpdateDocumentImagePreviewAsync();
         }
 
         private void BtnLaunchPortal_Click(object sender, RoutedEventArgs e)
