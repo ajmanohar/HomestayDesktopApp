@@ -25,10 +25,6 @@ namespace HomestayDesktopApp.Services
     /// </summary>
     public class PassportApiClient
     {
-        // --------------------------------------------------------------------------
-        // Configuration: Production endpoint and pre-shared Bearer Token
-        // --------------------------------------------------------------------------
-
         // Default production API endpoint on the Dell edge server via Cloudflare Tunnel
         private const string DefaultBaseUrl = "https://api.theasymptotebrief.com/api/v1/";
 
@@ -52,7 +48,6 @@ namespace HomestayDesktopApp.Services
         /// <param name="bearerToken">Optional custom Bearer token.</param>
         public PassportApiClient(string? baseUrl = null, string? bearerToken = null)
         {
-            // Ensure base URL ends with a trailing slash so relative paths resolve cleanly
             BaseUrl = baseUrl ?? DefaultBaseUrl;
             if (!BaseUrl.EndsWith("/"))
             {
@@ -61,20 +56,25 @@ namespace HomestayDesktopApp.Services
 
             string tokenToUse = bearerToken ?? DefaultBearerToken;
 
-            // Initialize HttpClient with explicit BaseAddress and connection timeout
             _httpClient = new HttpClient
             {
                 BaseAddress = new Uri(BaseUrl),
                 Timeout = TimeSpan.FromSeconds(120)
             };
 
-            // Configure default request headers to expect application/json responses
             _httpClient.DefaultRequestHeaders.Accept.Clear();
             _httpClient.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json")
             );
 
-            // Inject static Bearer authorization header for API access control
+            // Set Cache-Control header to no-cache to avoid stale job lists
+            _httpClient.DefaultRequestHeaders.CacheControl = new CacheControlHeaderValue
+            {
+                NoCache = true,
+                NoStore = true,
+                MustRevalidate = true
+            };
+
             if (!string.IsNullOrWhiteSpace(tokenToUse))
             {
                 _httpClient.DefaultRequestHeaders.Authorization =
@@ -84,7 +84,8 @@ namespace HomestayDesktopApp.Services
 
         /// <summary>
         /// Fetches the recent completed and processing jobs from the Dell server backend.
-        /// Maps to GET /api/v1/jobs on PassportReadAPI with Authorization Bearer header.
+        /// Uses cache-busting query parameter to guarantee fresh results.
+        /// Maps to GET /api/v1/jobs?limit=50&_t={timestamp}.
         /// </summary>
         /// <param name="cancellationToken">Cancellation token for aborting the request.</param>
         /// <returns>List of JobDetailResponse objects retrieved directly from SQLite.</returns>
@@ -92,16 +93,15 @@ namespace HomestayDesktopApp.Services
         {
             try
             {
-                // Explicit relative path resolving against BaseAddress (https://api.theasymptotebrief.com/api/v1/)
-                var response = await _httpClient.GetAsync("jobs?limit=50", cancellationToken);
+                // Cache-busting timestamp prevents intermediate HTTP caching
+                string url = $"jobs?limit=50&_t={DateTime.UtcNow.Ticks}";
+                var response = await _httpClient.GetAsync(url, cancellationToken);
 
-                // If non-200 status code is returned (e.g. 401 Unauthorized), return empty list safely
                 if (!response.IsSuccessStatusCode)
                 {
                     return new List<JobDetailResponse>();
                 }
 
-                // Read and deserialize JSON payload from server
                 var jsonString = await response.Content.ReadAsStringAsync(cancellationToken);
                 var jobs = JsonSerializer.Deserialize<List<JobDetailResponse>>(jsonString);
 
@@ -109,7 +109,6 @@ namespace HomestayDesktopApp.Services
             }
             catch
             {
-                // Return an empty list upon connection failure to prevent unhandled UI crashes
                 return new List<JobDetailResponse>();
             }
         }
@@ -125,17 +124,14 @@ namespace HomestayDesktopApp.Services
             string jobId,
             CancellationToken cancellationToken = default)
         {
-            // Validate input job identifier parameter
             if (string.IsNullOrWhiteSpace(jobId))
             {
                 throw new ArgumentException("Job ID cannot be null or empty.", nameof(jobId));
             }
 
-            // Send GET request to jobs/{jobId}
-            var response = await _httpClient.GetAsync($"jobs/{jobId}", cancellationToken);
+            var response = await _httpClient.GetAsync($"jobs/{jobId}?_t={DateTime.UtcNow.Ticks}", cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            // Deserialize response content into typed model
             var jsonString = await response.Content.ReadAsStringAsync(cancellationToken);
             var result = JsonSerializer.Deserialize<JobDetailResponse>(jsonString);
 
@@ -149,13 +145,13 @@ namespace HomestayDesktopApp.Services
 
         /// <summary>
         /// Fetches binary image bytes for a protected document artifact from the Dell server.
-        /// Transmits the Authorization Bearer header to avoid 401 Unauthorized responses.
+        /// Injects the Authorization Bearer header to avoid 401 Unauthorized responses.
         /// Maps to GET /api/v1/jobs/{job_id}/image/{doc_type}.
         /// </summary>
         /// <param name="jobId">Job UUID identifier.</param>
-        /// <param name="docType">Document key ('passport_bio', 'visa_page', 'entry_stamp', 'welcome_form', or 'guest_photo').</param>
+        /// <param name="docType">Document key ('passport_bio', 'visa_document', 'visa_stamp', 'entry_stamp', 'welcome_form', or 'guest_photo').</param>
         /// <param name="cancellationToken">Optional cancellation token.</param>
-        /// <returns>Byte array representing the raw image data, or null if not found/error.</returns>
+        /// <returns>Byte array representing raw image bytes, or null on error.</returns>
         public async Task<byte[]?> GetDocumentImageBytesAsync(
             string jobId,
             string docType,
@@ -168,8 +164,7 @@ namespace HomestayDesktopApp.Services
 
             try
             {
-                // Relative URL resolving to jobs/{jobId}/image/{docType}
-                string relativeUrl = $"jobs/{jobId}/image/{docType}";
+                string relativeUrl = $"jobs/{jobId}/image/{docType}?_t={DateTime.UtcNow.Ticks}";
                 var response = await _httpClient.GetAsync(relativeUrl, cancellationToken);
 
                 if (!response.IsSuccessStatusCode)
