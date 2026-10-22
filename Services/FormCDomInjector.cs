@@ -2,15 +2,11 @@
 // FormCDomInjector.cs - HomestayDesktopApp (.NET 8 WPF)
 // ==============================================================================
 // Automation script generator and execution bridge for Microsoft WebView2.
-// Injects sanitized guest data into the official Indian Bureau of Immigration
-// Form-C web portal (https://indianfrro.gov.in/frro/FormC/).
-//
-// Key Features:
-// - Date format normalizer: converts any valid date (YYYY-MM-DD, DD-MM-YYYY)
-//   to portal format DD/MM/YYYY before injection.
-// - Sanitizes all extracted strings (strips dummy tokens like "Parthasarthy Nagar").
-// - If any field value is null or empty, leaves the input blank ("").
-// - Dispatches input, change, and blur DOM events to trigger validation listeners.
+// Injects sanitized credentials and guest data into the Form-C portal.
+// Features:
+// - Recursive iframe scanning to reach nested portal frames.
+// - Date format normalization (converts DD-MM-YYYY or YYYY-MM-DD to DD/MM/YYYY).
+// - Prototype value setters to fire native change and input events.
 // ==============================================================================
 
 using System;
@@ -29,18 +25,8 @@ namespace HomestayDesktopApp.Services
     /// </summary>
     public class FormCDomInjector
     {
-        // --------------------------------------------------------------------------
-        // Private Fields
-        // --------------------------------------------------------------------------
-
-        /// <summary>
-        /// Reference to the WPF WebView2 control hosting the Form-C portal.
-        /// </summary>
+        // Reference to the WPF WebView2 control hosting the Form-C portal
         private readonly WebView2 _webView;
-
-        // --------------------------------------------------------------------------
-        // Constructor
-        // --------------------------------------------------------------------------
 
         /// <summary>
         /// Initializes a new instance of FormCDomInjector bound to an active WebView2 instance.
@@ -59,25 +45,15 @@ namespace HomestayDesktopApp.Services
         /// Sanitizes and escapes a candidate string value for safe JavaScript insertion.
         /// Rejects known mock/placeholder tokens and returns an empty string for null values.
         /// </summary>
-        /// <param name="candidate">The raw extracted string value.</param>
-        /// <returns>A clean, JavaScript-safe string.</returns>
         private static string CleanValue(string? candidate)
         {
-            if (string.IsNullOrWhiteSpace(candidate))
-            {
-                return string.Empty;
-            }
+            if (string.IsNullOrWhiteSpace(candidate)) return string.Empty;
 
             string trimmed = candidate.Trim();
             string lower = trimmed.ToLowerInvariant();
 
-            // Guard against common placeholder or null tokens
-            if (lower == "null" || lower == "none" || lower == "n/a" || lower == "unknown")
-            {
-                return string.Empty;
-            }
+            if (lower == "null" || lower == "none" || lower == "n/a" || lower == "unknown") return string.Empty;
 
-            // Reject hallucination remnants
             if (lower.Contains("parthasarthy") || 
                 lower.Contains("parthasarathy") || 
                 lower.Contains("example@domain.com") || 
@@ -92,26 +68,20 @@ namespace HomestayDesktopApp.Services
         }
 
         /// <summary>
-        /// Normalizes date strings (YYYY-MM-DD or DD-MM-YYYY) into the official
-        /// Form-C portal format DD/MM/YYYY.
+        /// Normalizes date strings (DD-MM-YYYY or YYYY-MM-DD) into official Form-C portal format DD/MM/YYYY.
         /// </summary>
-        /// <param name="dateCandidate">Raw or operator-edited date string.</param>
-        /// <returns>Standardized DD/MM/YYYY string, or sanitized original if parsing fails.</returns>
         private static string NormalizeDateForPortal(string? dateCandidate)
         {
             string clean = CleanValue(dateCandidate);
-            if (string.IsNullOrWhiteSpace(clean))
+            if (string.IsNullOrWhiteSpace(clean)) return string.Empty;
+
+            // If already DD-MM-YYYY, swap hyphens for slashes
+            if (System.Text.RegularExpressions.Regex.IsMatch(clean, @"^\d{2}-\d{2}-\d{4}$"))
             {
-                return string.Empty;
+                return clean.Replace("-", "/");
             }
 
-            // Check if already in DD/MM/YYYY format
-            if (System.Text.RegularExpressions.Regex.IsMatch(clean, @"^\d{2}/\d{2}/\d{4}$"))
-            {
-                return clean;
-            }
-
-            // Attempt DateTime parse across standard ISO and common formats
+            // Attempt DateTime parse across standard ISO and culture formats
             if (DateTime.TryParse(clean, out DateTime parsed))
             {
                 return parsed.ToString("dd/MM/yyyy");
@@ -121,16 +91,13 @@ namespace HomestayDesktopApp.Services
         }
 
         // --------------------------------------------------------------------------
-        // Script Synthesis Routines
+        // Script Synthesis Routines (Multi-Frame / Iframe Aware)
         // --------------------------------------------------------------------------
 
         /// <summary>
-        /// Synthesizes the JavaScript snippet to autofill portal login credentials securely.
-        /// Focuses on the visual CAPTCHA input element after populating username and password.
+        /// Synthesizes JavaScript to autofill portal login credentials across the main document
+        /// and any nested iframes.
         /// </summary>
-        /// <param name="username">Decrypted portal username.</param>
-        /// <param name="password">Decrypted portal password.</param>
-        /// <returns>JavaScript string for WebView2 execution.</returns>
         public string GenerateLoginInjectionScript(string username, string password)
         {
             string cleanUser = JavaScriptEncoder.Default.Encode(username ?? string.Empty);
@@ -138,43 +105,55 @@ namespace HomestayDesktopApp.Services
 
             var sb = new StringBuilder();
             sb.AppendLine("(function() {");
-            sb.AppendLine("    console.log('[FormCInjector] Attempting automated credential injection...');");
-            sb.AppendLine("    function setVal(selector, val) {");
-            sb.AppendLine("        const el = document.querySelector(selector);");
-            sb.AppendLine("        if (el) {");
-            sb.AppendLine("            el.focus();");
-            sb.AppendLine("            el.value = val;");
-            sb.AppendLine("            el.dispatchEvent(new Event('input', { bubbles: true }));");
-            sb.AppendLine("            el.dispatchEvent(new Event('change', { bubbles: true }));");
-            sb.AppendLine("            return true;");
+            sb.AppendLine("    console.log('[FormCInjector] Attempting automated credential injection across frames...');");
+            sb.AppendLine("    function findAndFill(doc) {");
+            sb.AppendLine("        if (!doc) return false;");
+            sb.AppendLine("        function setVal(sel, val) {");
+            sb.AppendLine("            const el = doc.querySelector(sel);");
+            sb.AppendLine("            if (el) {");
+            sb.AppendLine("                el.focus();");
+            sb.AppendLine("                el.value = val;");
+            sb.AppendLine("                el.dispatchEvent(new Event('input', { bubbles: true }));");
+            sb.AppendLine("                el.dispatchEvent(new Event('change', { bubbles: true }));");
+            sb.AppendLine("                return true;");
+            sb.AppendLine("            }");
+            sb.AppendLine("            return false;");
             sb.AppendLine("        }");
-            sb.AppendLine("        return false;");
+            sb.AppendLine($"        const uFound = setVal('input[name=\"u_name\"], input[name=\"username\"], #u_name, input[name=\"u_id\"], #u_id, #txt_uid, input[type=\"text\"]', '{cleanUser}');");
+            sb.AppendLine($"        const pFound = setVal('input[name=\"pass\"], input[name=\"password\"], #pass, input[name=\"upass\"], #upass, #txt_pwd, input[type=\"password\"]', '{cleanPass}');");
+            sb.AppendLine("        const captcha = doc.querySelector('input[name=\"cap\"], input[name=\"captcha\"], #cap, input[name=\"txt_cap\"], #txt_cap, input[name=\"u_captcha\"]');");
+            sb.AppendLine("        if (captcha) { captcha.focus(); }");
+            sb.AppendLine("        return uFound || pFound;");
             sb.AppendLine("    }");
             sb.AppendLine();
-            sb.AppendLine($"    const uFound = setVal('input[name=\"u_name\"], input[name=\"username\"], #u_name, input[name=\"u_id\"], #u_id, #txt_uid', '{cleanUser}');");
-            sb.AppendLine($"    const pFound = setVal('input[name=\"pass\"], input[name=\"password\"], #pass, input[name=\"upass\"], #upass, #txt_pwd', '{cleanPass}');");
+            sb.AppendLine("    // 1. Try top-level document");
+            sb.AppendLine("    let success = findAndFill(document);");
             sb.AppendLine();
-            sb.AppendLine("    const captcha = document.querySelector('input[name=\"cap\"], input[name=\"captcha\"], #cap, input[name=\"txt_cap\"], #txt_cap');");
-            sb.AppendLine("    if (captcha) {");
-            sb.AppendLine("        captcha.focus();");
+            sb.AppendLine("    // 2. Try all nested iframes if not found");
+            sb.AppendLine("    if (!success) {");
+            sb.AppendLine("        const frames = document.querySelectorAll('iframe');");
+            sb.AppendLine("        for (let i = 0; i < frames.length; i++) {");
+            sb.AppendLine("            try {");
+            sb.AppendLine("                const frameDoc = frames[i].contentDocument || (frames[i].contentWindow ? frames[i].contentWindow.document : null);");
+            sb.AppendLine("                if (frameDoc && findAndFill(frameDoc)) {");
+            sb.AppendLine("                    success = true;");
+            sb.AppendLine("                    break;");
+            sb.AppendLine("                }");
+            sb.AppendLine("            } catch (frameErr) {");
+            sb.AppendLine("                console.warn('[FormCInjector] Iframe access restricted:', frameErr);");
+            sb.AppendLine("            }");
+            sb.AppendLine("        }");
             sb.AppendLine("    }");
             sb.AppendLine();
-            sb.AppendLine("    return JSON.stringify({");
-            sb.AppendLine("        success: uFound || pFound,");
-            sb.AppendLine("        userFound: uFound,");
-            sb.AppendLine("        passFound: pFound");
-            sb.AppendLine("    });");
+            sb.AppendLine("    return JSON.stringify({ success: success });");
             sb.AppendLine("})();");
 
             return sb.ToString();
         }
 
         /// <summary>
-        /// Synthesizes the JavaScript snippet to populate guest bio-data and Form-C fields.
-        /// Applies DD/MM/YYYY date formatting to all date fields before DOM assignment.
+        /// Synthesizes JavaScript to populate guest bio-data and Form-C fields across main document and iframes.
         /// </summary>
-        /// <param name="record">The verified guest record containing extracted bio-data.</param>
-        /// <returns>JavaScript string for WebView2 execution.</returns>
         public string GenerateFormFillScript(GuestFormCRecord record)
         {
             if (record == null)
@@ -182,7 +161,6 @@ namespace HomestayDesktopApp.Services
                 return "JSON.stringify({ success: false, message: 'No guest record supplied.' });";
             }
 
-            // Extract, clean, and format values
             string surname = CleanValue(record.Surname?.Value);
             string givenNames = CleanValue(record.GivenNames?.Value);
             string sex = CleanValue(record.Sex?.Value);
@@ -213,20 +191,19 @@ namespace HomestayDesktopApp.Services
 
             var sb = new StringBuilder();
             sb.AppendLine("(function() {");
-            sb.AppendLine("    console.log('[FormCInjector] Populating Form-C guest fields with normalized dates...');");
+            sb.AppendLine("    console.log('[FormCInjector] Populating Form-C guest fields across frames...');");
             sb.AppendLine("    let filledCount = 0;");
             sb.AppendLine();
-            sb.AppendLine("    function assignField(names, val) {");
-            sb.AppendLine("        if (!val) return false;");
+            sb.AppendLine("    function assignField(doc, names, val) {");
+            sb.AppendLine("        if (!doc || !val) return false;");
             sb.AppendLine("        for (let i = 0; i < names.length; i++) {");
-            sb.AppendLine("            const el = document.querySelector(`input[name=\"${names[i]}\"], select[name=\"${names[i]}\"], textarea[name=\"${names[i]}\"], #${names[i]}`);");
+            sb.AppendLine("            const el = doc.querySelector(`input[name=\"${names[i]}\"], select[name=\"${names[i]}\"], textarea[name=\"${names[i]}\"], #${names[i]}`);");
             sb.AppendLine("            if (el) {");
             sb.AppendLine("                el.focus();");
             sb.AppendLine("                el.value = val;");
             sb.AppendLine("                el.dispatchEvent(new Event('input', { bubbles: true }));");
             sb.AppendLine("                el.dispatchEvent(new Event('change', { bubbles: true }));");
             sb.AppendLine("                el.dispatchEvent(new Event('blur', { bubbles: true }));");
-            sb.AppendLine("                console.log(`[FormCInjector] Assigned '${names[i]}' = '${val}'`);");
             sb.AppendLine("                filledCount++;");
             sb.AppendLine("                return true;");
             sb.AppendLine("            }");
@@ -234,37 +211,47 @@ namespace HomestayDesktopApp.Services
             sb.AppendLine("        return false;");
             sb.AppendLine("    }");
             sb.AppendLine();
-            sb.AppendLine("    // 1. Passport & Identity Details");
-            sb.AppendLine($"    assignField(['splname', 'surname', 'txtSurname'], '{surname}');");
-            sb.AppendLine($"    assignField(['givname', 'given_name', 'txtGivenNames'], '{givenNames}');");
-            sb.AppendLine($"    assignField(['sex', 'gender', 'ddlGender'], '{sex}');");
-            sb.AppendLine($"    assignField(['dob', 'birth_date', 'txtDob'], '{dob}');");
-            sb.AppendLine($"    assignField(['passnum', 'passno', 'txtPassNum'], '{passportNum}');");
-            sb.AppendLine($"    assignField(['passexpdt', 'pass_expiry', 'txtPassExp'], '{passportExp}');");
-            sb.AppendLine($"    assignField(['natcode', 'nationality', 'ddlNat'], '{nationality}');");
+            sb.AppendLine("    function processTargetDoc(doc) {");
+            sb.AppendLine("        if (!doc) return;");
+            sb.AppendLine($"        assignField(doc, ['splname', 'sur_name', 'surname', 'txtSurname'], '{surname}');");
+            sb.AppendLine($"        assignField(doc, ['givname', 'given_name', 'txtGivenNames'], '{givenNames}');");
+            sb.AppendLine($"        assignField(doc, ['sex', 'gender', 'ddlGender'], '{sex}');");
+            sb.AppendLine($"        assignField(doc, ['dob', 'birth_date', 'txtDob'], '{dob}');");
+            sb.AppendLine($"        assignField(doc, ['passnum', 'pass_num', 'passno', 'txtPassNum'], '{passportNum}');");
+            sb.AppendLine($"        assignField(doc, ['passexpdt', 'pass_exp_date', 'pass_expiry', 'txtPassExp'], '{passportExp}');");
+            sb.AppendLine($"        assignField(doc, ['natcode', 'nati', 'nationality', 'ddlNat'], '{nationality}');");
+            sb.AppendLine($"        assignField(doc, ['visano', 'visa_num', 'visa_number', 'txtVisaNum'], '{visaNum}');");
+            sb.AppendLine($"        assignField(doc, ['visatype', 'visa_type', 'ddlVisaType'], '{visaType}');");
+            sb.AppendLine($"        assignField(doc, ['visaidt', 'visa_issue_date', 'txtVisaIssue'], '{visaIssueDate}');");
+            sb.AppendLine($"        assignField(doc, ['visaexpdt', 'visa_exp_date', 'visa_expiry', 'txtVisaExp'], '{visaExpDate}');");
+            sb.AppendLine($"        assignField(doc, ['visapoi', 'visa_place', 'txtVisaPlace'], '{visaPlace}');");
+            sb.AppendLine($"        assignField(doc, ['arvdateind', 'arri_date', 'arrival_date_india', 'txtArrDateInd'], '{arrivalDate}');");
+            sb.AppendLine($"        assignField(doc, ['arvplaceind', 'arri_port', 'arrival_port_india', 'txtArrPortInd'], '{arrivalPort}');");
+            sb.AppendLine($"        assignField(doc, ['addr', 'address', 'txtAddress'], '{address}');");
+            sb.AppendLine($"        assignField(doc, ['city', 'txtCity'], '{city}');");
+            sb.AppendLine($"        assignField(doc, ['country', 'coun', 'txtCountry'], '{country}');");
+            sb.AppendLine($"        assignField(doc, ['email', 'email_id', 'txtEmail'], '{email}');");
+            sb.AppendLine($"        assignField(doc, ['phone', 'phone_num', 'mno', 'txtMobile'], '{phone}');");
+            sb.AppendLine($"        assignField(doc, ['arvhotel', 'datetime_arrival_homestay', 'txtArrHomestay'], '{arrivalHomestay}');");
+            sb.AppendLine($"        assignField(doc, ['arvfrom', 'arri_from', 'arrived_from', 'txtArvFrom'], '{arrivedFrom}');");
+            sb.AppendLine($"        assignField(doc, ['procto', 'proc_to', 'proceeding_to', 'txtProcTo'], '{proceedingTo}');");
+            sb.AppendLine($"        assignField(doc, ['duration', 'stay_duration', 'proposed_duration', 'txtDuration'], '{stayDuration}');");
+            sb.AppendLine($"        assignField(doc, ['purpose', 'purpose_of_visit', 'ddlPurpose'], '{purpose}');");
+            sb.AppendLine("    }");
             sb.AppendLine();
-            sb.AppendLine("    // 2. Visa Details");
-            sb.AppendLine($"    assignField(['visano', 'visa_number', 'txtVisaNum'], '{visaNum}');");
-            sb.AppendLine($"    assignField(['visatype', 'ddlVisaType'], '{visaType}');");
-            sb.AppendLine($"    assignField(['visaidt', 'visa_issue_date', 'txtVisaIssue'], '{visaIssueDate}');");
-            sb.AppendLine($"    assignField(['visaexpdt', 'visa_expiry', 'txtVisaExp'], '{visaExpDate}');");
-            sb.AppendLine($"    assignField(['visapoi', 'visa_place', 'txtVisaPlace'], '{visaPlace}');");
+            sb.AppendLine("    // 1. Process root document");
+            sb.AppendLine("    processTargetDoc(document);");
             sb.AppendLine();
-            sb.AppendLine("    // 3. Port & Arrival Details");
-            sb.AppendLine($"    assignField(['arvdateind', 'arrival_date_india', 'txtArrDateInd'], '{arrivalDate}');");
-            sb.AppendLine($"    assignField(['arvplaceind', 'arrival_port_india', 'txtArrPortInd'], '{arrivalPort}');");
-            sb.AppendLine();
-            sb.AppendLine("    // 4. Stay & Contact Details (Form-C Rule 14)");
-            sb.AppendLine($"    assignField(['addr', 'address', 'txtAddress'], '{address}');");
-            sb.AppendLine($"    assignField(['city', 'txtCity'], '{city}');");
-            sb.AppendLine($"    assignField(['country', 'txtCountry'], '{country}');");
-            sb.AppendLine($"    assignField(['email', 'txtEmail'], '{email}');");
-            sb.AppendLine($"    assignField(['phone', 'mno', 'txtMobile'], '{phone}');");
-            sb.AppendLine($"    assignField(['arvhotel', 'datetime_arrival_homestay', 'txtArrHomestay'], '{arrivalHomestay}');");
-            sb.AppendLine($"    assignField(['arvfrom', 'arrived_from', 'txtArvFrom'], '{arrivedFrom}');");
-            sb.AppendLine($"    assignField(['procto', 'proceeding_to', 'txtProcTo'], '{proceedingTo}');");
-            sb.AppendLine($"    assignField(['duration', 'proposed_duration', 'txtDuration'], '{stayDuration}');");
-            sb.AppendLine($"    assignField(['purpose', 'purpose_of_visit', 'ddlPurpose'], '{purpose}');");
+            sb.AppendLine("    // 2. Process all child iframes");
+            sb.AppendLine("    const frames = document.querySelectorAll('iframe');");
+            sb.AppendLine("    for (let i = 0; i < frames.length; i++) {");
+            sb.AppendLine("        try {");
+            sb.AppendLine("            const frameDoc = frames[i].contentDocument || (frames[i].contentWindow ? frames[i].contentWindow.document : null);");
+            sb.AppendLine("            if (frameDoc) { processTargetDoc(frameDoc); }");
+            sb.AppendLine("        } catch (frameErr) {");
+            sb.AppendLine("            console.warn('[FormCInjector] Iframe access restricted:', frameErr);");
+            sb.AppendLine("        }");
+            sb.AppendLine("    }");
             sb.AppendLine();
             sb.AppendLine("    return JSON.stringify({");
             sb.AppendLine("        success: filledCount > 0,");
@@ -279,12 +266,6 @@ namespace HomestayDesktopApp.Services
         // WebView2 Execution Bridge Methods
         // --------------------------------------------------------------------------
 
-        /// <summary>
-        /// Executes credential injection asynchronously inside the active WebView2 runtime.
-        /// </summary>
-        /// <param name="username">Portal username/User ID.</param>
-        /// <param name="password">Portal password.</param>
-        /// <returns>Tuple containing success indicator and user-facing status message.</returns>
         public async Task<(bool Success, string Message)> InjectLoginCredentialsAsync(string username, string password)
         {
             if (_webView.CoreWebView2 == null)
@@ -304,17 +285,15 @@ namespace HomestayDesktopApp.Services
 
                 using var doc = JsonDocument.Parse(rawResult.Trim('"').Replace("\\\"", "\"").Replace("\\\\", "\\"));
                 var root = doc.RootElement;
-                bool success = root.GetProperty("success").GetBoolean();
-                bool userFound = root.GetProperty("userFound").GetBoolean();
-                bool passFound = root.GetProperty("passFound").GetBoolean();
+                bool success = root.TryGetProperty("success", out var s) && s.GetBoolean();
 
                 if (success)
                 {
-                    return (true, $"Credentials populated successfully (User: {userFound}, Password: {passFound}). Enter CAPTCHA to continue.");
+                    return (true, "Credentials populated successfully. Enter visual CAPTCHA to continue.");
                 }
                 else
                 {
-                    return (false, "Could not find login fields on the active page. Ensure you are on the Form-C login page.");
+                    return (false, "Could not find login fields on active page or frames. Ensure you are on the Form-C login page.");
                 }
             }
             catch (Exception ex)
@@ -323,11 +302,6 @@ namespace HomestayDesktopApp.Services
             }
         }
 
-        /// <summary>
-        /// Executes guest Form-C field autofill asynchronously inside the active WebView2 runtime.
-        /// </summary>
-        /// <param name="record">Extracted guest bio-data and arrival information.</param>
-        /// <returns>Tuple containing success indicator and user-facing status message.</returns>
         public async Task<(bool Success, string Message)> InjectGuestDetailsAsync(GuestFormCRecord record)
         {
             if (_webView.CoreWebView2 == null)
@@ -352,7 +326,7 @@ namespace HomestayDesktopApp.Services
 
                 using var doc = JsonDocument.Parse(rawResult.Trim('"').Replace("\\\"", "\"").Replace("\\\\", "\\"));
                 var root = doc.RootElement;
-                bool success = root.GetProperty("success").GetBoolean();
+                bool success = root.TryGetProperty("success", out var s) && s.GetBoolean();
                 int count = root.TryGetProperty("count", out var cVal) ? cVal.GetInt32() : 0;
 
                 if (success)
@@ -361,7 +335,7 @@ namespace HomestayDesktopApp.Services
                 }
                 else
                 {
-                    return (false, "No matching Form-C input elements found on this page. Navigate to the guest entry form.");
+                    return (false, "No matching Form-C input elements found on this page. Navigate to the guest registration form.");
                 }
             }
             catch (Exception ex)
